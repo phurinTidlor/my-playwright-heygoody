@@ -1,0 +1,32 @@
+{
+  "validIds": [
+    {
+      "name": "valid id card",
+      "input": "1919900230281",
+      "expectedValue": "1-9199-00230-28-1"
+    }
+  ],
+  "invalidIds": [
+    {
+      "name": "incomplete id card",
+      "input": "1919900230",
+      "reason": "less than 13 digits"
+    },
+    {
+      "name": "invalid characters",
+      "input": "abc-def-xxxxx",
+      "reason": "non-numeric characters"
+    },
+    {
+      "name": "invalid checksum",
+      "input": "1111111111111",
+      "reason": "checksum failed"
+    },
+    {
+      "name": "exceed maxlength",
+      "input": "12345678901234567890",
+      "reason": "exceed maxlength"
+    }
+  ],
+  "countInvalidIds": 4
+}

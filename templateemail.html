@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="light dark">
+    <title>Email OTP</title>
+    <style>
+        .otp-box {
+            background-color: #EEF0F2 !important;
+        }
+
+        .color-gray-900-30 {
+            color: #0F1921 !important
+        }
+
+        .color-gray-200-90 {
+            color: #52606B !important
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .otp-box {
+                background-color: #323339 !important;
+            }
+
+            .color-gray-900-30 {
+                color: #EEF0F2 !important
+            }
+
+            .color-gray-200-90 {
+                color: #929DA5 !important
+            }
+
+            [data-ogsc] .otp-box {
+                background-color: #323339 !important;
+            }
+
+            [data-ogsc] .color-gray-900-30 {
+                color: #EEF0F2 !important
+            }
+
+            [data-ogsc] .color-gray-200-90 {
+                color: #929DA5 !important
+            }
+        }
+
+        /* Gmail light mode fix */
+        u+.body .otp-box {
+            background-color: #EEF0F2 !important;
+        }
+
+        u+.body .color-gray-900-30 {
+            color: #0F1921 !important
+        }
+
+        u+.body .color-gray-200-90 {
+            color: #52606B !important
+        }
+
+        @media (prefers-color-scheme: dark) {
+            u+.body .otp-box {
+                background-color: #323339 !important;
+            }
+
+            u+.body .color-gray-900-30 {
+                color: #EEF0F2 !important
+            }
+
+            u+.body .color-gray-200-90 {
+                color: #929DA5 !important
+            }
+        }
+    </style>
+</head>
+
+<body class="body" style="margin:0; padding:0;">
+    <table width="100%" border="0" cellpadding="0" cellspacing="0" class="color-gray-900-30"
+        style="font-family:'Thonburi','Tahoma','Microsoft Sans Serif',sans-serif;font-size:14px;color:#0F1921;">
+        <tr>
+            <td>
+                <table width="360" border="0" cellpadding="0" cellspacing="0">
+                    <!-- Header -->
+                    <tr>
+                        <td>
+                            <div style="padding:24px 12px 16px; text-align:center;">
+                                <a href="https://www.heygoody.com" target="_blank">
+                                    <img src="https://dev-assets.areetech.io/email/heygoody-color-on-white.png"
+                                        width="157" height="28" alt="heygoody" style="width: 157px;height: 28px;" />
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Body -->
+                    <tr>
+                        <td>
+                            <div style="padding: 0 12px;">
+                                <div style="padding:16px 12px 24px;">
+                                    <div style="text-align: center;padding-bottom: 12px;">
+                                        <div>ใช้รหัส OTP นี้เพื่อเข้าสู่ระบบ</div>
+                                        <div style="font-size:12px;color:#52606B;">(รหัสอ้างอิง : ${ref_otp})</div>
+                                    </div>
+                                    <div class="otp-box"
+                                        style="text-align: center; border-radius: 12px;background-color: #EEF0F2;max-width: 188px; padding:12px 24px;margin:0 auto; ">
+                                        <div style="font-size: 30px;font-weight:bold;letter-spacing: 4px;">${otp}</div>
+                                        <div class="color-gray-200-90" style="font-size: 12px; color:#52606B;">รหัส OTP
+                                            นี้มีอายุ ${expires_at} นาที</div>
+                                    </div>
+                                </div>
+                                <div style="text-align: center;padding: 8px 12px;">
+                                    <div>ต้องการความช่วยเหลือ แชทได้ตลอด 24 ชม.</div>
+                                    <div>LINE <a href="#" class="color-gray-900-30"
+                                            style="font-weight:bold;color:#0F1921;text-decoration:none;">@heygoody</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td>
+                            <div class="color-gray-200-90" style="font-size:12px;color:#52606B;padding:24px 12px 0;">
+                                <div style="text-align:center;padding-bottom: 16px;">
+                                    *อีเมลนี้ถูกส่งจากระบบอัตโนมัติ
+                                    กรุณาอย่าตอบกลับ*
+                                </div>
+                                <div style="font-weight: bold;border-top: 1px solid #E9EBED; padding:16px 0;">
+                                    <div style="font-size:0;padding-bottom: 16px;">
+
+                                        <a href="https://www.facebook.com/heygoodyTH" target="_blank"
+                                            style="text-decoration:none;display:inline-block;">
+                                            <img src="https://dev-assets.areetech.io/email/facebook.png"
+                                                width="40" height="40" alt="facebook"
+                                                style="width: 40px;height: 40px;" />
+                                        </a>
+                                        <a href="https://www.heygoody.com/th/addfriend/?campaign=linefriend&param_unify_user=SEdHMjAyNTA0MjIzMDE5ODI="
+                                            target="_blank"
+                                            style="text-decoration:none;display:inline-block;margin-right: 8px;">
+                                            <img src="https://dev-assets.areetech.io/email/line.png"
+                                                width="40" height="40" alt="line" style="width: 40px;height: 40px;" />
+                                        </a>
+                                    </div>
+                                    <div style="padding-bottom: 4px;">
+                                        <div>บริษัท ติดล้อ เทค จำกัด</div>
+                                        <div>
+                                            428 อาคารอารีย์ ฮิลล์ ชั้น 16 ถนนพหลโยธิน แขวงสามเสนใน<br />
+                                            เขตพญาไท กรุงเทพมหานคร 10400
+                                        </div>
+                                    </div>
+                                    <div style="padding-bottom: 4px;">ทะเบียนเลขที่ 0105567118154</div>
+                                    <div>โทร. <a href="tel:027921987" class="color-gray-200-90"
+                                            style="color:#52606B;">02-792-1987</a></div>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+
+</html>
