@@ -457,6 +457,7 @@ test('Check Validate OCR fillinfo page : Upload Image can not using', async ({ p
 
     // close popup email
     const closeIcon = page.locator('#close-auth-section-dialog-icon-id').nth(1);
+    //test
 
     await expect(closeIcon).toBeVisible();
     await closeIcon.click();
