@@ -59,8 +59,8 @@ const memberEmails = [
     "ptest.hg@gmail.com"
 ];
 
-//const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
-const baseURL = 'https://uat-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
+const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
+//const baseURL = 'https://uat-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
 
 async function selectSedanCarType(page) {
     const sedanCard = page.locator('#lt-individual-quote-car-type-label-id2'); //id0=Nonev, id1=EV, id2=Pickup, id3=Van 
@@ -73,14 +73,14 @@ async function selectSedanCarType(page) {
 }
 
 async function selectStartDate(page) {
-    const selector = '[data-day="2026-01-31"]:visible';
+    const selector = '[data-day="2026-02-28"]:visible';
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('Start Date: Selected 2026-01-31');
+    console.log('Start Date: Selected 2026-02-28');
 }
 
 async function submitQuote(page) {
@@ -342,13 +342,13 @@ test('Check Invalidate Email pop up login fillinfo page', async ({ page }) => {
 
     // popup email
     const emailInput = page.getByLabel('อีเมล').nth(1);
-    const submitBtn = page.getByRole('button', { name: 'สมัครฟรี รับส่วนลดทันที' }).nth(1);;
+    const submitBtn = page.getByRole('button', { name: 'สมัครฟรี รับส่วนลดทันที' }).nth(1);
 
     for (const email of invalidEmails) {
         await test.step(`invalid email: ${email}`, async () => {
 
             await emailInput.pressSequentially(email, { delay: 80 });
-            await submitBtn.click();
+            //await submitBtn.click();
             await expect(emailInput).toHaveAttribute('aria-invalid', 'true');
             await expect(
                 page.getByText('กรอกอีเมลเพื่อใช้สร้างบัญชีให้ถูกต้อง')
@@ -409,14 +409,18 @@ test('Check EMPTY Email pop up login fillinfo page', async ({ page }) => {
 
     // popup email
     const emailInput = page.getByLabel('อีเมล').nth(1);
-    const submitBtn = page.getByRole('button', { name: 'สมัครฟรี รับส่วนลดทันที' });
+    //const submitBtn = page.getByRole('button', { name: 'สมัครฟรี รับส่วนลดทันที' }).nth(1);
+    const popup = page.locator('[data-slot="dialog-content"]:visible');
+    const submitBtn = popup.locator('#register-button-id');
 
     /* =========================
           CASE 1: EMPTY EMAIL
        ========================== */
     await test.step('empty email should show required error', async () => {
         await emailInput.fill('');
-        await submitBtn.click();
+        await expect(submitBtn).toHaveCSS('pointer-events', 'none');
+
+
 
         await expect(emailInput).toHaveAttribute('aria-invalid', 'true');
 
@@ -472,7 +476,7 @@ test('Check Member Email pop up login fillinfo page', async ({ page }) => {
     await page.waitForTimeout(1000);
 
 
-    await page.locator('#checkout-button-id').click(); 
+    await page.locator('#checkout-button-id').click();
     await page.waitForTimeout(1000);
 
     const emailInput = page.getByLabel('อีเมล').nth(1);
@@ -480,10 +484,10 @@ test('Check Member Email pop up login fillinfo page', async ({ page }) => {
 
     for (const email of memberEmails) {
 
-        await test.step( `Member email: ${email}`, async () => {
+        await test.step(`Member email: ${email}`, async () => {
 
-            await emailInput.fill(email, {delay: 50}); 
-            await submitBtn.click(); 
+            await emailInput.fill(email, { delay: 50 });
+            await submitBtn.click();
 
             await expect(page.getByText('อีเมลนี้มีบัญชีกับ heygoody แล้ว')).toBeVisible();
         });

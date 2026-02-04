@@ -15,12 +15,14 @@ export async function selectBuyForMyself(page) {
 }
 
 export async function selectBuyForOthers(page) {
-    const radio = page.getByRole('radio', { name: 'ซื้อให้คนอื่น' });
-    await radio.click();
-    await expect(radio).toHaveAttribute('aria-checked', 'true');
-    await page.locator('#insured-id-card-input-id').waitFor({
-        state: 'visible'
-    });
+    const buyForOthersTab = page.getByRole('tab', { name: 'ซื้อให้คนอื่น' });
+
+    await buyForOthersTab.click();
+    await expect(buyForOthersTab).toHaveAttribute('aria-selected', 'true');
+
+    // รอ content ของ tab นี้แสดงจริง
+    const panel = page.locator('[role="tabpanel"]:visible');
+    await expect(panel).toBeVisible();
 }
 
 /** ปุ่มถัดไป / ต่อไป */
@@ -290,12 +292,22 @@ export async function openAccordionByText(page, titleText) {
     }
 }
 
-export async function selectAddressOption(page, triggerId) {
+/* export async function selectAddressOption(page, triggerId) {
     const trigger = page.locator(`#${triggerId}`);
     await trigger.click({ force: true });
 
     const option = page.locator('[role="option"]').first();
     await expect(option).toBeVisible();
+    await option.click();
+} */
+
+export async function selectAddressOption(page) {
+    const listbox = page.locator('[role="listbox"]:visible');
+    const option = listbox.getByRole('option').first();
+
+    await expect(listbox).toBeVisible({ timeout: 10000 });
+    await expect(option).toBeVisible();
+
     await option.click();
 }
 

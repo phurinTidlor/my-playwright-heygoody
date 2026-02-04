@@ -156,14 +156,14 @@ async function selectRandomBirthYear(page) {
 // }
 
 async function selectStartDate(page) {
-    const selector = '[data-day="2026-01-31"]:visible';
+    const selector = '[data-day="2026-02-28"]:visible';
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('✅ Start Date: Selected 2026-01-31');
+    console.log('✅ Start Date: Selected 2026-02-28');
 }
 
 /* async function submitQuote1(page) {

@@ -45,14 +45,14 @@ async function selectSedanCarType(page) {
 }
 
 async function selectStartDate(page) {
-    const selector = '[data-day="2026-01-31"]:visible';
+    const selector = '[data-day="2026-02-28"]:visible';
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('Start Date: Selected 2026-01-31');
+    console.log('Start Date: Selected 2026-02-28');
 }
 
 async function submitQuote(page) {
@@ -115,6 +115,12 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
+    await page.waitForTimeout(1000);
+
+    // close popup email
+    const closeIcon = page.locator('#close-auth-section-dialog-icon-id').nth(1);
+    await expect(closeIcon).toBeVisible();
+    await closeIcon.click();
     await page.waitForTimeout(1000);
 
     await selectBuyForMyself(page);
@@ -287,6 +293,12 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
+    await page.waitForTimeout(1000);
+
+    // close popup email
+    const closeIcon = page.locator('#close-auth-section-dialog-icon-id').nth(1);
+    await expect(closeIcon).toBeVisible();
+    await closeIcon.click();
     await page.waitForTimeout(1000);
 
     await selectBuyForOthers(page);
