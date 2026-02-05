@@ -1,12 +1,12 @@
 const { test, expect, request } = require('@playwright/test');
 
 // Import helper functions
-const { selectRandomFromListItemsJuristic, selectRandomBrand, selectRandomModel, selectRandomYear, selectRandomSubmodel, selectRandomProvince, selectRandomInsurer } = require('../../helpers/quote-helper-random');
+const { selectRandomBrand, selectRandomModel, selectRandomYear, selectRandomSubmodel, selectRandomProvince, selectRandomInsurer } = require('../../helpers/quote-helper-random');
 
 const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-juristic/new/quote';
 
 async function selectJuristicCarType(page) {
-    const juristicCard = page.locator('#lt-juristic-quote-car-type-item-id0');
+    const juristicCard = page.locator('#lt-juristic-quote-car-type-item-id1');
     await expect(juristicCard).toBeVisible();
     await juristicCard.waitFor({ state: 'attached' });  
     await juristicCard.click({ force: true });
@@ -39,7 +39,7 @@ async function submitQuote(page) {
 
 }
 
-test('heygoody juristic e2e non ev random flow', async ({ page }) => {
+test('heygoody juristic e2e ev random flow', async ({ page }) => {
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
 

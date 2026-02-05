@@ -23,11 +23,12 @@ async function selectRandomFromListItems(page, description = '') {
 
     console.log(`${description}: Selected "${randomItem}" (${randomIndex + 1}/${items.length})`);
 
-    await selectedButton.click();
+    await selectedButton.click({force: true});
     await page.waitForTimeout(1000);
 
     return randomItem;
 }
+
 
 /* async function selectSedanCarType(page) {
     const sedanCard = page.locator('#lt-individual-quote-car-type-label-id0');
@@ -163,7 +164,7 @@ async function selectStartDate(page) {
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('✅ Start Date: Selected 2026-02-28');
+    console.log('Start Date: Selected 2026-02-28');
 }
 
 /* async function submitQuote1(page) {

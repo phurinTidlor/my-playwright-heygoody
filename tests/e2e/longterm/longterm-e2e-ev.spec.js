@@ -35,12 +35,12 @@ const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-individua
 //const baseURL = 'https://uat-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
 
 async function selectSedanCarType(page) {
-    const sedanCard = page.locator('#lt-individual-quote-car-type-label-id0');
+    const sedanCard = page.locator('#lt-individual-quote-car-type-label-id1');
     await expect(sedanCard).toBeVisible();
     await sedanCard.waitFor({ state: 'attached' });  // รอจน DOM stable
     await sedanCard.click({ force: true });
     await page.waitForTimeout(500);
-    await expect(page.getByText('รถเก๋ง, กระบะ 4 ประตู, รถตู้ไม่เกิน 7 ที่นั่ง')).toBeVisible();
+    await expect(page.getByText('รถไฟฟ้า EV ไม่เกิน 7 ที่นั่ง')).toBeVisible();
     await page.waitForTimeout(500);
 }
 
@@ -68,7 +68,7 @@ async function submitQuote(page) {
 }
 
 
-test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
+test('heygoody longterm e2e Ev bymyself flow', async ({ page }) => {
     test.setTimeout(90_000);
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
@@ -118,7 +118,7 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     await page.waitForTimeout(1000);
 
     // close popup email
-    const closeIcon = page.locator('#close-auth-section-dialog-icon-id');
+    const closeIcon = page.locator('#close-auth-section-dialog-icon-id').nth(1);
     await expect(closeIcon).toBeVisible();
     await closeIcon.click();
     await page.waitForTimeout(1000);
@@ -246,7 +246,7 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
 
 });
 
-test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
+test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
     test.setTimeout(90_000);
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
