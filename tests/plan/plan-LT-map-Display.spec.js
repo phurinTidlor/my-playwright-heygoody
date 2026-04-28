@@ -90,14 +90,14 @@ async function selectSedanCarType(page) {
 }
 
 async function selectStartDate(page) {
-    const selector = '[data-day="2026-01-31"]:visible';
+    const selector = '[data-day="2026-03-22"]:visible';
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('Start Date: Selected 2026-01-31');
+    console.log('Start Date: Selected 2026-03-22');
 }
 
 async function waitForCardsToStabilize(page, timeout = 8000) {

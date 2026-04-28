@@ -4,7 +4,7 @@ import { test, expect } from '@playwright/test';
 async function selectRandomFromListItems(page, description = '') {
     const buttons = page.getByRole('listitem').locator('button');
     const items = await buttons.allTextContents();
-    const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
+    const baseURL = 'https://uat-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
 
 
     if (items.length === 0) {
@@ -23,7 +23,7 @@ async function selectRandomFromListItems(page, description = '') {
 
     console.log(`${description}: Selected "${randomItem}" (${randomIndex + 1}/${items.length})`);
 
-    await selectedButton.click({force: true});
+    await selectedButton.click();
     await page.waitForTimeout(1000);
 
     return randomItem;
@@ -157,14 +157,14 @@ async function selectRandomBirthYear(page) {
 // }
 
 async function selectStartDate(page) {
-    const selector = '[data-day="2026-02-28"]:visible';
+    const selector = '[data-day="2026-03-28"]:visible';
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('Start Date: Selected 2026-02-28');
+    console.log('Start Date: Selected 2026-03-28');
 }
 
 /* async function submitQuote1(page) {

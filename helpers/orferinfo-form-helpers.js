@@ -2,16 +2,31 @@ import { expect } from '@playwright/test';
 
 /** เลือกซื้อให้ตัวเอง (ใช้แทบทุก test) */
 export async function selectBuyForMyself(page) {
-    // const radio = page.getByRole('radio', { name: 'ซื้อให้ตัวเอง' });
-    // await radio.click();
-    const buyForMyselfTab = page.getByRole('tab', { name: 'ซื้อให้ตัวเอง' });
+    const tab = page.getByRole('tab', { name: /ซื้อให้ตัวเอง/ });
 
-    await buyForMyselfTab.click();
-    await expect(buyForMyselfTab).toHaveAttribute('aria-selected', 'true');
-    //await expect(radio).toHaveAttribute('aria-checked', 'true');
-    await page.locator('#insured-id-card-input-id').waitFor({
-        state: 'visible'
-    });
+    // ✅ 1. รอให้ UI มาถึง step นี้ก่อน
+    await expect(page.getByText('ข้อมูลเจ้าของรถ (ผู้เอาประกัน)')).toBeVisible({ timeout: 15000 });
+
+    // ✅ 2. กัน popup (สำคัญมาก)
+    const popup = page.locator('#close-auth-section-sheet-icon-id');
+    if (await popup.isVisible().catch(() => false)) {
+        await popup.click();
+    }
+
+    // ✅ 3. รอให้ tab usable จริง
+    await expect(tab).toBeVisible({ timeout: 15000 });
+    await expect(tab).toBeEnabled();
+
+    // ✅ 4. click
+    await tab.click();
+
+    // ✅ 5. assert state
+    await expect(tab).toHaveAttribute('aria-selected', 'true');
+
+    // ✅ 6. รอ field ถัดไป
+    await expect(
+        page.locator('#insured-id-card-input-id')
+    ).toBeVisible({ timeout: 10000 });
 }
 
 export async function selectBuyForOthers(page) {
@@ -31,12 +46,20 @@ export function nextButton(page) {
 }
 
 /** กรอก input + blur */
-export async function fillAndBlur(input, value, delay = 40) {
+export async function fillAndBlur(input, value, delay = 80) {
+    const text = String(await value);
+
+    await input.waitFor({ state: 'visible' });
+    await input.click({ force: true });
+
     await input.fill('');
-    if (value) {
-        await input.pressSequentially(value, { delay });
+
+    if (text) {
+        await input.pressSequentially(text, { delay });
     }
-    await input.blur();
+
+    // รอให้ input settle (สำคัญมาก)
+    await input.evaluate(el => el.blur());
 }
 
 /** expect field invalid */
@@ -106,7 +129,7 @@ export async function testValidValues(
 
 
 /** loop test select คำนำหน้า */
-export async function selectRandomTitleName(page) {
+/* export async function selectRandomTitleName(page) {
     const trigger = page.locator('#insured-title-name-select-id');
 
     // เปิด dropdown
@@ -127,7 +150,33 @@ export async function selectRandomTitleName(page) {
 
     // คลิก option
     await randomOption.click();
+} */
+
+
+export async function selectRandomTitleName(page) {
+    const trigger = page.locator('#title-name-select-id');
+
+    // รอ element
+    await expect(trigger).toBeVisible({ timeout: 10000 });
+
+    // เปิด dropdown
+    await trigger.click();
+
+    // รอ dropdown เปิด
+    await expect(trigger).toHaveAttribute('data-state', 'open');
+
+    const listbox = page.locator('[role="listbox"]').last();
+    await expect(listbox).toBeVisible();
+
+    const options = listbox.locator('[role="option"]');
+
+    const count = await options.count();
+    expect(count).toBeGreaterThan(0);
+
+    const randomIndex = Math.floor(Math.random() * count);
+    await options.nth(randomIndex).click();
 }
+
 
 export async function fillThaiIdCard(input, value) {
     if (typeof value !== 'string') {
@@ -292,16 +341,35 @@ export async function openAccordionByText(page, titleText) {
     }
 }
 
-/* export async function selectAddressOption(page, triggerId) {
+/* xport async function selectAddressOption(page, triggerId) {
     const trigger = page.locator(`#${triggerId}`);
-    await trigger.click({ force: true });
+    await trigger.click();
 
     const option = page.locator('[role="option"]').first();
     await expect(option).toBeVisible();
     await option.click();
 } */
 
-export async function selectAddressOption(page) {
+export async function selectAddressOption(page, triggerId) {
+    const trigger = page.locator(`#${triggerId}`);
+
+    // รอให้ element visible
+    await expect(trigger).toBeVisible({ timeout: 15000 });
+
+    // รอให้ไม่ disabled
+    await expect(trigger).toBeEnabled({ timeout: 15000 });
+
+    // เปิด dropdown
+    await trigger.click();
+
+    const listbox = page.locator('[role="listbox"]').last();
+    await expect(listbox).toBeVisible();
+
+    const option = listbox.locator('[role="option"]').first();
+    await option.click();
+}
+
+/* export async function selectAddressOption(page) {
     const listbox = page.locator('[role="listbox"]:visible');
     const option = listbox.getByRole('option').first();
 
@@ -309,7 +377,26 @@ export async function selectAddressOption(page) {
     await expect(option).toBeVisible();
 
     await option.click();
-}
+} */
+
+/* export async function selectAddressOption(page) {
+    const listbox = page.locator('[role="listbox"]');
+
+    // รอแบบ soft (ไม่ fail test)
+    const appeared = await listbox
+        .waitFor({ state: 'visible', timeout: 5000 })
+        .then(() => true)
+        .catch(() => false);
+
+    if (!appeared) {
+        console.log('ℹ️ Address listbox not shown (auto-filled), skip');
+        return;
+    }
+
+    const option = listbox.getByRole('option').first();
+    await option.click();
+} */
+
 
 export async function randomSelectColor(page, selectId, index = 0) {
     const trigger = page.locator(`#${selectId}`);
@@ -326,7 +413,7 @@ export async function randomSelectColor(page, selectId, index = 0) {
     return text;
 }
 
-export async function randomSelectTitleNameDriver1(page) {
+/* export async function randomSelectTitleNameDriver1(page) {
     // 1. เปิด select (ตัวปุ่ม combobox)
     const trigger = page.locator('#driver-title-name-select-id');
     await trigger.scrollIntoViewIfNeeded();
@@ -350,6 +437,23 @@ export async function randomSelectTitleNameDriver1(page) {
     await expect(trigger).toContainText(text);
 
     return text; // เผื่อเอาไป log / assert ต่อ
+} */
+
+export async function randomSelectTitleNameDriver1(page) {
+    const trigger = page.locator('#title-name-select-id').nth(1);
+
+    await expect(trigger).toBeVisible({ timeout: 15000 });
+
+    await trigger.scrollIntoViewIfNeeded();
+    await trigger.click();
+
+    const options = page.locator('[role="option"]');
+    await expect(options.first()).toBeVisible();
+
+    const count = await options.count();
+    const randomIndex = Math.floor(Math.random() * count);
+
+    await options.nth(randomIndex).click();
 }
 
 
