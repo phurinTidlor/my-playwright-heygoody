@@ -2,8 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 const {
     goToQuoteWithRetry,
-    selectSedanCarTypePickup,
-    selectCustomAccordionPickup,
+    selectSedanCarTypeEVJuristic,
     generatePlateAdvanced,
 } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
@@ -22,26 +21,28 @@ import {
     generateUniqueLicense,
     generateUniquePassport,
     generateChassisNumber,
+    generateEngineNumber,
     humanFillText,
     selectRadioByLabel,
     openAccordionByText,
     fillAddressInfo,
     fillDriverInfoManual,
     addAdditionalDriver,
-    randomSelectColor,
+    maybeSelectCarColor,
 } from '../../../helpers/orferinfo-form-helpers';
 
-const baseURL = urls.ltIndividualQuote;
+const baseURL = urls.ltJuristicQuote;
 
-const PICKUP_QUOTE_OPTIONS = {
-    selectCarType: selectSedanCarTypePickup,
-    afterSubmodel: selectCustomAccordionPickup,
+const JURISTIC_EV_QUOTE_OPTIONS = {
+    selectCarType: selectSedanCarTypeEVJuristic,
+    skipBirthYear: true,
+    welcomeText: 'เช็คเบี้ยประกันรถนิติบุคคล',
 };
 
-test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
+test('heygoody longterm e2e Ev bymyself flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -51,8 +52,13 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click();
@@ -64,7 +70,10 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
     await testValidValues(page, idCardInput, validIDcard);
     await page.waitForTimeout(500);
 
@@ -101,7 +110,7 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
         generateUniqueLicense()
     );
 
-    await fillAddressInfo(page, address, 'address-information-header-id');
+    await fillAddressInfo(page, address, 'add-address-info-button-id');
 
     await openAccordionByText(page, 'ข้อมูลรถ');
 
@@ -114,8 +123,12 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
         page.locator('#chassis-number-id'),
         generateChassisNumber()
     );
+    await humanFillText(
+        page.locator('#engine-number-id'),
+        generateEngineNumber()
+    );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
@@ -128,10 +141,18 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
+test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    // EV for-others flow มีการเลือก CMI ก่อนกด "ดูแผน"
+    await goToQuoteWithRetry(page, baseURL, {
+        ...JURISTIC_EV_QUOTE_OPTIONS,
+        beforeSubmit: async (p) => {
+            const prbCard = p.locator('#quote-car-cmi-card-id');
+            await expect(prbCard).toBeVisible();
+            await prbCard.click();
+        },
+    });
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -141,8 +162,13 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click();
@@ -154,7 +180,10 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
     await testValidValues(page, idCardInput, validIDcard);
     await page.waitForTimeout(500);
 
@@ -198,8 +227,12 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
         page.locator('#chassis-number-id'),
         generateChassisNumber()
     );
+    await humanFillText(
+        page.locator('#engine-number-id'),
+        generateEngineNumber()
+    );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
@@ -212,10 +245,10 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
+test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -306,8 +339,12 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
         page.locator('#chassis-number-id'),
         generateChassisNumber()
     );
+    await humanFillText(
+        page.locator('#engine-number-id'),
+        generateEngineNumber()
+    );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
@@ -320,10 +357,10 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e Ev add 5 foreign drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -422,8 +459,12 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
         page.locator('#chassis-number-id'),
         generateChassisNumber()
     );
+    await humanFillText(
+        page.locator('#engine-number-id'),
+        generateEngineNumber()
+    );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
@@ -436,10 +477,10 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e Ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -520,7 +561,7 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
         { foreign: true }
     );
 
-    await fillAddressInfo(page, address, 'address-information-header-id');
+    await fillAddressInfo(page, address, 'add-address-info-button-id');
 
     await openAccordionByText(page, 'ข้อมูลรถ');
 
@@ -533,8 +574,12 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
         page.locator('#chassis-number-id'),
         generateChassisNumber()
     );
+    await humanFillText(
+        page.locator('#engine-number-id'),
+        generateEngineNumber()
+    );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');

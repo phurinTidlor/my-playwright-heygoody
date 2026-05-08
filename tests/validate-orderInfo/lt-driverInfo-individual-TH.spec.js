@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+const { driver } = require('../../helpers/test-data');
 
 const invalidIDcard = [
     "7",
@@ -25,7 +26,7 @@ const invalidIDcard = [
 const validIDcard = [
     "1919900230281",
     "1100702074397",
-    "3100900155331",
+    driver.idCard,
     "1234567890121",
     "0000000000001",
     "9999999999994",

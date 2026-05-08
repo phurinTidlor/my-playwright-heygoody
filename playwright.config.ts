@@ -47,10 +47,10 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
-    {
+   /*  {
       name: 'iPhone 13 Safari',
       use: { ...devices['iPhone 13'] }, // <-- WebKit automatically
-    },
+    }, */
 
     /* {
       name: 'firefox',

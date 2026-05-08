@@ -2,8 +2,6 @@ const { test, expect } = require('@playwright/test');
 
 const {
     goToQuoteWithRetry,
-    selectSedanCarTypePickup,
-    selectCustomAccordionPickup,
     generatePlateAdvanced,
 } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
@@ -14,6 +12,7 @@ import {
     selectBuyForOthers,
     closeLoginPopup,
     closeEmailPopup,
+    pickDateOfBirth,
     testValidValues,
     selectRandomTitleName,
     generateRandomThaiName,
@@ -28,20 +27,24 @@ import {
     fillAddressInfo,
     fillDriverInfoManual,
     addAdditionalDriver,
-    randomSelectColor,
+    maybeSelectCarColor,
+    maybeFillRegisteredProvince,
 } from '../../../helpers/orferinfo-form-helpers';
 
-const baseURL = urls.ltIndividualQuote;
+const baseURL = urls.stIndividualQuote;
 
-const PICKUP_QUOTE_OPTIONS = {
-    selectCarType: selectSedanCarTypePickup,
-    afterSubmodel: selectCustomAccordionPickup,
+// ST flow: ไม่มี car type, province, birth year
+const ST_QUOTE_OPTIONS = {
+    selectCarType: null,
+    skipProvince: true,
+    skipBirthYear: true,
+    welcomeText: 'เช็คเบี้ยประกันรถยนต์ระยะสั้น',
 };
 
-test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
+test('heygoody shortterm e2e non-ev bymyself flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -77,12 +80,7 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -93,7 +91,7 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 
-    // Driver 1 = ตัวเอง (ใช้ข้อมูลผู้เอาประกัน)
+    // Driver 1 = ตัวเอง
     await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
     await selectRadioByLabel(page, 'driver1-insured-radio-id');
     await humanFillText(
@@ -115,7 +113,8 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
         generateChassisNumber()
     );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
+    await maybeFillRegisteredProvince(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
@@ -128,10 +127,10 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
+test('heygoody shortterm e2e non-ev by for others flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -167,12 +166,7 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -199,23 +193,23 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
         generateChassisNumber()
     );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
+    await maybeFillRegisteredProvince(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
     await nextBtn.click();
 
-    // assert ว่า OTP dialog โผล่
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
+test('heygoody shortterm e2e non-ev add 5 drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -251,12 +245,7 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -275,7 +264,6 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
         'ระบุคนที่ห้า',
     ];
 
-    // Driver คนแรก
     await fillDriverInfoManual(page, {
         ...driver,
         idCard: generateUniqueThaiIDCard(),
@@ -283,7 +271,6 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
         name: driverNames[0],
     });
 
-    // เพิ่ม driver คนที่ 2-5
     for (let i = 1; i < 5; i++) {
         await addAdditionalDriver(page, {
             ...driver,
@@ -307,23 +294,23 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
         generateChassisNumber()
     );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
+    await maybeFillRegisteredProvince(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
     await nextBtn.click();
 
-    // assert ว่า OTP dialog โผล่
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }) => {
+test('heygoody shortterm e2e non-ev add 5 foreign drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -359,12 +346,7 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -383,7 +365,6 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
         { name: 'Mike', lastName: 'Johnson' },
     ];
 
-    // Driver คนแรก — ต่างชาติ
     await fillDriverInfoManual(
         page,
         {
@@ -395,7 +376,6 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
         { foreign: true }
     );
 
-    // เพิ่ม driver คนที่ 2-5 — ต่างชาติ
     for (let i = 1; i < 5; i++) {
         await addAdditionalDriver(
             page,
@@ -423,23 +403,23 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
         generateChassisNumber()
     );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
+    await maybeFillRegisteredProvince(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
     await nextBtn.click();
 
-    // assert ว่า OTP dialog โผล่
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', async ({ page }) => {
+test('heygoody shortterm e2e non-ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -475,12 +455,7 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -491,7 +466,7 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 
-    // Driver 1 = ตัวเอง (ใช้ข้อมูลผู้เอาประกัน)
+    // Driver 1 = ตัวเอง
     await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
     await selectRadioByLabel(page, 'driver1-insured-radio-id');
     await humanFillText(
@@ -534,13 +509,13 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
         generateChassisNumber()
     );
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    await maybeSelectCarColor(page);
+    await maybeFillRegisteredProvince(page);
     await page.waitForTimeout(3000);
 
     const nextBtn = page.locator('#next-button-id');
     await nextBtn.click();
 
-    // assert ว่า OTP dialog โผล่
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 

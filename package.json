@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "",
   "main": "index.js",
-  "scripts": {},
+  "scripts": {
+    "runner": "node runner/server.js"
+  },
   "keywords": [],
   "author": "",
   "license": "ISC",

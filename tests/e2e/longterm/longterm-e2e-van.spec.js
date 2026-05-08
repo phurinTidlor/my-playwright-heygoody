@@ -2,8 +2,7 @@ const { test, expect } = require('@playwright/test');
 
 const {
     goToQuoteWithRetry,
-    selectSedanCarTypePickup,
-    selectCustomAccordionPickup,
+    selectSedanCarTypeVan,
     generatePlateAdvanced,
 } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
@@ -33,15 +32,14 @@ import {
 
 const baseURL = urls.ltIndividualQuote;
 
-const PICKUP_QUOTE_OPTIONS = {
-    selectCarType: selectSedanCarTypePickup,
-    afterSubmodel: selectCustomAccordionPickup,
+const VAN_QUOTE_OPTIONS = {
+    selectCarType: selectSedanCarTypeVan,
 };
 
-test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
+test('heygoody longterm e2e van bymyself flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, VAN_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -128,10 +126,10 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
+test('heygoody longterm e2e van by for others flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, VAN_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -212,10 +210,10 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
+test('heygoody longterm e2e van add 5 drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, VAN_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -320,10 +318,10 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e van add 5 foreign drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, VAN_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -436,10 +434,10 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e van bymyself add Thai+foreign drivers flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, VAN_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);

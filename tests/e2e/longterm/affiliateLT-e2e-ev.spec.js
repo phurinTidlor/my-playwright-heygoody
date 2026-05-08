@@ -1,6 +1,7 @@
 const { test, expect, request } = require('@playwright/test');
 
 const { selectRandomBrand, selectRandomModel, selectRandomYear, selectRandomSubmodel, selectRandomProvince, selectRandomInsurer, selectRandomBirthYear } = require('../../../helpers/quote-helper-random');
+const { insured, driver } = require('../../../helpers/test-data');
 import {
     selectBuyForMyself,
     selectBuyForOthers,
@@ -163,16 +164,16 @@ test('heygoody longterm e2e Ev bymyself flow', async ({ page }) => {
 
     await humanFillText(
         page.locator('#insured-email-input-id'),
-        'ptest.hg@gmail.com'
+        insured.email
     );
 
     await humanFillText(
-        page.locator('#insured-confirm-email-input-id'), 'ptest.hg@gmail.com'
+        page.locator('#insured-confirm-email-input-id'), insured.email
     );
     await page.waitForTimeout(500);
 
     const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially('0980356820', { delay: 40 });
+    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true')
 
@@ -342,16 +343,16 @@ test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
 
     await humanFillText(
         page.locator('#insured-email-input-id'),
-        'ptest.hg@gmail.com'
+        insured.email
     );
 
     await humanFillText(
-        page.locator('#insured-confirm-email-input-id'), 'ptest.hg@gmail.com'
+        page.locator('#insured-confirm-email-input-id'), insured.email
     );
     await page.waitForTimeout(500);
 
     const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially('0980356820', { delay: 40 });
+    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true')
 
@@ -367,7 +368,7 @@ test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
     await selectRadioByLabel(page, 'driver1-manual-radio-id');
     await humanFillText(
         page.locator('#driver-id-card-input-id'),
-        '3100900155331',
+        driver.idCard,
         {
             delay: 30,
             normalize: v => v.replace(/\D/g, ''), // เอาเฉพาะตัวเลข
@@ -375,7 +376,7 @@ test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
     );
     await humanFillText(
         page.locator('#driver-driving-license-input-id'),
-        '6000000001111'
+        driver.license
     );
 
     await randomSelectTitleNameDriver1(page);
@@ -403,11 +404,11 @@ test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
 
     await humanFillText(
         page.locator('#driver-email-input-id'),
-        'heygoody.test@gmail.com'
+        driver.email
     );
     await humanFillText(
         page.locator('#driver-phone-number-input-id'),
-        '0990000000', {
+        driver.phone, {
         normalize: v => v.replace(/\D/g, ''),
     });
     const confirmBtn = page.locator('#driver-dialog-save-button-id');

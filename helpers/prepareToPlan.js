@@ -92,7 +92,7 @@ export async function goToComparePage(page) {
 
 export async function scrollComparePage(page) {
     await test.step('Scroll compare page vertically & horizontally', async () => {
-        // 🔽 scroll แนวตั้ง
+        // scroll แนวตั้ง
         await page.evaluate(async () => {
             await new Promise(resolve => {
                 let totalHeight = 0;
@@ -110,7 +110,7 @@ export async function scrollComparePage(page) {
             });
         });
 
-        // ▶️ scroll แนวนอน (กรณี plan เยอะ)
+        // scroll แนวนอน (กรณี plan เยอะ)
         await page.evaluate(async () => {
             const container =
                 document.querySelector('[data-testid="compare-table"]') ||

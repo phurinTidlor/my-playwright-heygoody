@@ -1,14 +1,7 @@
-const { test, expect } = require('@playwright/test');
+const { test, expect, request } = require('@playwright/test');
 
-const {
-    goToQuoteWithRetry,
-    selectSedanCarTypePickup,
-    selectCustomAccordionPickup,
-    generatePlateAdvanced,
-} = require('../../../helpers/quote-helper-random');
-const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
-const { urls } = require('../../../helpers/config');
-
+const { goToQuoteWithRetry, selectSedanCarTypeJuristic, generatePlateAdvanced } = require('../../../helpers/quote-helper-random');
+const { insured, driver, foreignDriver, address, juristic } = require('../../../helpers/test-data');
 import {
     selectBuyForMyself,
     selectBuyForOthers,
@@ -21,27 +14,32 @@ import {
     generateUniqueThaiIDCard,
     generateUniqueLicense,
     generateUniquePassport,
+    generateUniqueJuristicId,
     generateChassisNumber,
     humanFillText,
     selectRadioByLabel,
     openAccordionByText,
     fillAddressInfo,
     fillDriverInfoManual,
+    fillJuristicCompanyInfo,
+    fillJuristicSignatory,
     addAdditionalDriver,
-    randomSelectColor,
+    randomSelectColor
 } from '../../../helpers/orferinfo-form-helpers';
 
-const baseURL = urls.ltIndividualQuote;
 
-const PICKUP_QUOTE_OPTIONS = {
-    selectCarType: selectSedanCarTypePickup,
-    afterSubmodel: selectCustomAccordionPickup,
+const { urls } = require('../../../helpers/config');
+const baseURL = urls.ltJuristicQuote;
+
+const JURISTIC_QUOTE_OPTIONS = {
+    selectCarType: selectSedanCarTypeJuristic,
+    skipBirthYear: true,
+    welcomeText: 'เช็คเบี้ยประกันรถนิติบุคคล',
 };
 
-test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
-    test.setTimeout(120_000);
-
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
+    test.setTimeout(90_000);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -49,40 +47,35 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     const recommendedCard = page
         .locator('#insurance-coverage-head-component-id')
         .filter({ hasText: 'แผนแนะนำ' })
-        .locator('..');
+        .locator('..'); 
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
-    await page.locator('#checkout-button-id').click();
+    await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
     await page.waitForTimeout(1000);
 
     await closeEmailPopup(page);
-    await selectBuyForMyself(page);
 
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
+    // กรอกข้อมูลบริษัท (juristic)
+    await fillJuristicCompanyInfo(page, {
+        juristicId: generateUniqueJuristicId(),
+        companyName: juristic.companyName,
+        branch: juristic.branch,
+    });
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    // กรอกข้อมูลผู้เซ็นรับรอง (signatory)
+    await fillJuristicSignatory(page, {
+        idCard: generateUniqueThaiIDCard(),
+        firstName: generateRandomThaiName(),
+        lastName: generateRandomThaiLastName('เฮกู้ดดี้'),
+    });
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -93,15 +86,16 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 
-    // Driver 1 = ตัวเอง (ใช้ข้อมูลผู้เอาประกัน)
+    // Driver 1 = ใช้ข้อมูลเจ้าของรถ (บริษัท)
     await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
     await selectRadioByLabel(page, 'driver1-insured-radio-id');
     await humanFillText(
         page.locator('#driver1-license-input-id'),
-        generateUniqueLicense()
+        driver.license
     );
 
     await fillAddressInfo(page, address, 'address-information-header-id');
+
 
     await openAccordionByText(page, 'ข้อมูลรถ');
 
@@ -109,6 +103,8 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
         page.locator('#license-plate-id'),
         await generatePlateAdvanced()
     );
+
+
     await page.waitForTimeout(500);
     await humanFillText(
         page.locator('#chassis-number-id'),
@@ -126,12 +122,13 @@ test('heygoody longterm e2e pick-up bymyself flow', async ({ page }) => {
     await expect(otpDialog).toBeVisible();
 
     await page.pause();
+
+
 });
 
-test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
-    test.setTimeout(120_000);
-
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
+    test.setTimeout(90_000);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -141,30 +138,50 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
-    await page.locator('#checkout-button-id').click();
+    await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
     await page.waitForTimeout(1000);
 
+    // หน้า order info — อาจมี popup login ขึ้นซ้ำ
+    await closeLoginPopup(page);
     await closeEmailPopup(page);
     await selectBuyForOthers(page);
 
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
+    await testValidValues(
+        page,
+        idCardInput,
+        validIDcard,
+    );
     await page.waitForTimeout(500);
 
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    const nameInput = page.locator('#insured-name-input-id');
+    const randomName = generateRandomThaiName();
+
+    await humanFillText(nameInput, randomName);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
+    const lastNameInput = page.locator('#insured-last-name-input-id');
+    const randomLastname = generateRandomThaiLastName('เฮกู้ดดี้');
+
+    await humanFillText(lastNameInput, randomLastname);
     await page.waitForTimeout(500);
 
     const dobInput = page.locator('#dateOfBirth-input');
@@ -172,27 +189,37 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     await page.locator('[data-day*="/28/"]').click();
     await page.waitForTimeout(1000);
     await page.getByRole('button', { name: 'ยืนยัน' }).click();
+
     await page.waitForTimeout(1000);
 
-    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
-    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
+    await humanFillText(
+        page.locator('#insured-email-input-id'),
+        insured.email
+    );
+
+    await humanFillText(
+        page.locator('#insured-confirm-email-input-id'), insured.email
+    );
     await page.waitForTimeout(500);
 
     const phoneInput = page.locator('#insured-phone-number-input-id');
     await phoneInput.pressSequentially(insured.phone, { delay: 40 });
     await phoneInput.blur();
-    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
+    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true')
 
     await fillDriverInfoManual(page, driver);
 
     await fillAddressInfo(page, address, 'add-address-info-button-id');
 
+
     await openAccordionByText(page, 'ข้อมูลรถ');
 
     await humanFillText(
         page.locator('#license-plate-id'),
         await generatePlateAdvanced()
     );
+
+
     await page.waitForTimeout(500);
     await humanFillText(
         page.locator('#chassis-number-id'),
@@ -210,12 +237,14 @@ test('heygoody longterm e2e pick-up by for others flow', async ({ page }) => {
     await expect(otpDialog).toBeVisible();
 
     await page.pause();
+
+
 });
 
-test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
-    test.setTimeout(180_000);
+test('heygoody longterm e2e non-ev add 5 drivers flow', async ({ page }) => {
+    test.setTimeout(180_000); // นานขึ้นเพราะกรอก 5 driver
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -225,8 +254,13 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click();
@@ -238,8 +272,15 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
+    await testValidValues(
+        page,
+        idCardInput,
+        validIDcard,
+    );
     await page.waitForTimeout(500);
 
     await selectRandomTitleName(page);
@@ -267,6 +308,7 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 
+    // ใช้คำเลขไทยเป็นชื่อ (field 'name' ปฏิเสธตัวเลข/space)
     const driverNames = [
         'ระบุคนที่หนึ่ง',
         'ระบุคนที่สอง',
@@ -320,10 +362,10 @@ test('heygoody longterm e2e pick-up add 5 drivers flow', async ({ page }) => {
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e non-ev add 5 foreign drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -333,8 +375,13 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click();
@@ -346,8 +393,15 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
+    await testValidValues(
+        page,
+        idCardInput,
+        validIDcard,
+    );
     await page.waitForTimeout(500);
 
     await selectRandomTitleName(page);
@@ -375,6 +429,7 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 
+    // ชื่อภาษาอังกฤษ — ต่างกัน 5 คน
     const foreignNames = [
         { name: 'John', lastName: 'Doe' },
         { name: 'Jane', lastName: 'Smith' },
@@ -436,10 +491,12 @@ test('heygoody longterm e2e pick-up add 5 foreign drivers flow', async ({ page }
     await page.pause();
 });
 
-test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', async ({ page }) => {
+
+
+test('heygoody longterm e2e non-ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, PICKUP_QUOTE_OPTIONS);
+    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -449,8 +506,13 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
 
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await recommendedCard
+        .locator('#choose-plan-button-id')
+        .click();
+
+    await expect(
+        recommendedCard.locator('text=แผนแนะนำ')
+    ).toBeVisible();
     await page.waitForTimeout(1000);
 
     await page.locator('#checkout-button-id').click();
@@ -462,7 +524,10 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
     const idCardInput = page.locator('#insured-id-card-input-id');
     await expect(idCardInput).toBeVisible();
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
+    const validIDcard = Array.from({ length: 1 }, () =>
+        generateUniqueThaiIDCard()
+    );
+
     await testValidValues(page, idCardInput, validIDcard);
     await page.waitForTimeout(500);
 
@@ -540,7 +605,6 @@ test('heygoody longterm e2e pick-up bymyself add Thai+foreign drivers flow', asy
     const nextBtn = page.locator('#next-button-id');
     await nextBtn.click();
 
-    // assert ว่า OTP dialog โผล่
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 

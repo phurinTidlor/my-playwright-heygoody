@@ -4,17 +4,9 @@ import { test, expect } from '@playwright/test';
 async function selectRandomFromListItems(page, description = '') {
     const buttons = page.getByRole('listitem').locator('button');
     const items = await buttons.allTextContents();
-    const baseURL = 'https://uat-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
-
 
     if (items.length === 0) {
-        try {
-            await page.goto(baseURL);
-            await page.waitForLoadState('networkidle');
-        } catch (err) {
-            console.error("Navigation failed:", err.message);
-            return null;
-        }
+        throw new Error(`No items available for "${description}"`);
     }
 
     const randomIndex = Math.floor(Math.random() * items.length);
@@ -28,21 +20,10 @@ async function selectRandomFromListItems(page, description = '') {
 
     return randomItem;
 }
-
-
-/* async function selectSedanCarType(page) {
-    const sedanCard = page.locator('#lt-individual-quote-car-type-label-id0');
-    await expect(sedanCard).toBeVisible();
-    await sedanCard.waitFor({ state: 'attached' });
-    await sedanCard.click({ force: true });
-    await page.waitForTimeout(1000);
-    await expect(page.getByText('รถเก๋ง, กระบะ 4 ประตู, รถตู้ไม่เกิน 7 ที่นั่ง')).toBeVisible();
-    await page.waitForTimeout(1000);
-} */
 async function selectSedanCarType(page) {
     const sedanCard = page.locator('#lt-individual-quote-car-type-label-id0');
     await expect(sedanCard).toBeVisible();
-    await sedanCard.waitFor({ state: 'attached' });  // รอจน DOM stable
+    await sedanCard.waitFor({ state: 'attached' });  
     await sedanCard.click({ force: true });
     await page.waitForTimeout(500);
     await expect(page.getByText('รถเก๋ง, กระบะ 4 ประตู, รถตู้ไม่เกิน 7 ที่นั่ง')).toBeVisible();
@@ -65,6 +46,31 @@ async function selectSedanCarTypePickup(page) {
     await page.waitForTimeout(1000);
     await expect(
         page.getByText('รถกระบะ 2 ประตู', { exact: true })
+    ).toBeVisible();
+    await page.waitForTimeout(1000);
+}
+async function selectSedanCarTypeJuristic(page) {
+    const card = page.getByText('รถเก๋ง, กระบะ 4 ประตู, รถตู้ไม่เกิน 7 ที่นั่ง');
+    await expect(card).toBeVisible();
+    await card.click({ force: true });
+    await page.waitForTimeout(1000);
+}
+
+async function selectSedanCarTypeEVJuristic(page) {
+    const card = page.getByText('รถไฟฟ้า EV ไม่เกิน 7 ที่นั่ง');
+    await expect(card).toBeVisible();
+    await card.click({ force: true });
+    await page.waitForTimeout(1000);
+}
+
+async function selectSedanCarTypeVan(page) {
+    const pickupCard = page.locator('#lt-individual-quote-car-type-item-id3');
+    await expect(pickupCard).toBeVisible();
+    await pickupCard.waitFor({ state: 'attached' });
+    await pickupCard.click({ force: true });
+    await page.waitForTimeout(1000);
+    await expect(
+        page.getByText('รถตู้เกิน 7 ที่นั่ง', { exact: true })
     ).toBeVisible();
     await page.waitForTimeout(1000);
 }
@@ -94,21 +100,8 @@ async function selectCustomAccordionPickup(page, customId = 'ltIndividualQuotePi
     return customId;
 }
 
-async function selectSedanCarTypeVan(page) {
-    const vanCard = page.locator('#lt-individual-quote-car-type-label-id3');
-    await expect(vanCard).toBeVisible();
-    await vanCard.waitFor({ state: 'attached' });
-    await vanCard.click({ force: true });
-    await page.waitForTimeout(1000);
-    await expect(
-        page.getByText('รถตู้เกิน 7 ที่นั่ง', { exact: true })
-    ).toBeVisible();
-    await page.waitForTimeout(1000);
-}
-
 async function selectRandomBrand(page) {
     const selectedBrand = await selectRandomFromListItems(page, 'Brand');
-    //await expect(page.getByRole('heading', { name: `ยี่ห้อรถ ${selectedBrand}` })).toBeVisible();
     return selectedBrand;
 }
 
@@ -138,65 +131,135 @@ async function selectRandomBirthYear(page) {
     return await selectRandomFromListItems(page, 'Birth Year');
 }
 
-// async function selectStartDate(page) {
-//     // const day = page.locator('[data-day="2025-10-23"] > .focus-visible\\:border-ring');//.focus-visible\\:border-ring , .rdp-selected > .shrink-0
-//     // await day.click({ force : true });
-//     // await page.waitForTimeout(2000);
-//     // await page.locator('.rdp').waitFor({ state: 'visible', timeout: 10000 });
-//     // console.log('Start Date: Selected 2025-10-23');
-
-//     /* await page.locator('input[name="2025-10-23"]').getByText({ force: true }); // แก้เป็น selector ของคุณจริง
-//     await page.waitForTimeout(10000);
-//     const day = page.locator('td[data-day="2025-10-23"] button.rdp-day_button');
-//     await day.waitFor({ state: 'visible' });
-
-//     await day.click(); */
-
-//     const selector = page.locator(':nth-child(2) > .rdp-month_grid > .rdp-weeks > :nth-child(3)');
-//     await selector.click(`[data-day="2025-10-23"]`);
-// }
-
-async function selectStartDate(page) {
-    const selector = '[data-day="2026-03-28"]:visible';
+async function selectStartDate(page, date = '2026-05-28') {
+    const selector = `[data-day="${date}"]:visible`;
     await page.waitForSelector(selector, { state: 'visible', timeout: 15000 });
 
     const day = page.locator(selector);
     await day.click({ force: true });
     await page.waitForTimeout(2000);
 
-    console.log('Start Date: Selected 2026-03-28');
+    console.log(`Start Date: Selected ${date}`);
 }
 
-/* async function submitQuote1(page) {
-    const submitButton = page.locator('#quote-document-submit-button-id');
-    await expect(submitButton).toBeVisible();
-    await expect(submitButton).toBeEnabled();
-    await submitButton.click();
-    console.log('Quote submitted successfully');
-} */
+function generatePlateAdvanced() {
+    const rand = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const time = Date.now().toString().slice(-1);
+    return `1เฮ้${rand}${time}`;
+}
+
 
 async function submitQuote(page) {
     const btnByRole = page.getByRole('button', { name: 'ดูแผนประกันของคุณ' });
-    // รอให้ปุ่มปรากฏ และรอให้ไม่ถูก disabled
     await expect(btnByRole).toBeVisible();
     await expect(btnByRole).toBeEnabled();
-    // ถ้าการคลิกจะนำไปสู่ navigation:
     await Promise.all([
         page.waitForNavigation(/*{ waitUntil: 'networkidle' }*/),
         btnByRole.click()
     ]);
-    // ตรวจสอบผลลัพธ์บางอย่างหลังคลิก 
     await expect(page.locator('text=ตัวกรอง')).toBeVisible();
 
+}
+
+/**
+ * เข้าหน้า quote → กรอกข้อมูลรถ/คนขับ → submit แบบมี retry
+ * ถ้าเจอ "เรายังไม่มีแผนประกันสำหรับรถคุณ" → กดกลับสู่หน้าหลัก แล้วเริ่ม flow ใหม่
+ * จบเมื่อหน้า "ตัวกรอง" ปรากฏ (มีแผนประกันให้เลือก)
+ */
+async function goToQuoteWithRetry(page, baseURL, options = {}) {
+    const {
+        maxAttempts = 5,
+        selectCarType = selectSedanCarType,   // ส่ง null เพื่อข้าม (เช่น ST flow)
+        afterSubmodel = null,
+        beforeSubmit = null,
+        skipProvince = false,                 // ST flow ไม่มี province
+        skipBirthYear = false,                // ST/juristic ไม่มี birth year
+        skipStartDate = false,                // juristic auto-fill start date — ไม่ต้องเลือก
+        welcomeText = 'เปรียบเทียบประกันรถง่ายๆ กับ heygoody',
+    } = options;
+    let attempt = 0;
+
+    while (true) {
+        attempt++;
+        if (attempt > maxAttempts) {
+            throw new Error(`ไม่พบแผนประกันหลังลองครบ ${maxAttempts} ครั้ง`);
+        }
+        console.log(`🔄 Attempt ${attempt}/${maxAttempts}`);
+
+        try {
+            await page.goto(baseURL);
+            await page.waitForLoadState('networkidle');
+
+            await expect(page.getByText(welcomeText)).toBeVisible();
+            if (selectCarType) await selectCarType(page);
+
+            await selectRandomBrand(page);
+            await selectRandomModel(page);
+            await selectRandomYear(page);
+            await selectRandomSubmodel(page);
+
+            // hook สำหรับ extra step หลัง submodel (เช่น pickup ต้องเลือก accordion ก่อน)
+            if (afterSubmodel) await afterSubmodel(page);
+
+            if (!skipProvince) await selectRandomProvince(page);
+            await selectRandomInsurer(page);
+            if (!skipBirthYear) await selectRandomBirthYear(page);
+            if (!skipStartDate) await selectStartDate(page);
+
+            // hook สำหรับ extra step ก่อน submit (เช่นเลือก CMI)
+            if (beforeSubmit) await beforeSubmit(page);
+
+            // กดดูแผน inline (ไม่ใช้ submitQuote เพราะต้องเช็ก no-plans ก่อน assert ตัวกรอง)
+            const btnByRole = page.getByRole('button', { name: 'ดูแผนประกันของคุณ' });
+            await expect(btnByRole).toBeVisible();
+            await expect(btnByRole).toBeEnabled();
+            await btnByRole.click();
+            await page.waitForLoadState('networkidle').catch(() => { });
+            await page.waitForTimeout(1000);
+        } catch (err) {
+            console.log(`⚠️ Quote form failed: ${err.message} — retry`);
+            continue;
+        }
+
+        // race: รอ "ตัวกรอง" (มีแผน) หรือ "เรายังไม่มีแผนประกัน..." อย่างใดอย่างหนึ่ง
+        const planList = page.locator('text=ตัวกรอง');
+        const noPlanText = page.getByText('เรายังไม่มีแผนประกันสำหรับรถคุณ');
+        await Promise.race([
+            planList.waitFor({ state: 'visible', timeout: 15000 }),
+            noPlanText.waitFor({ state: 'visible', timeout: 15000 }),
+        ]).catch(() => { });
+
+        if (await noPlanText.isVisible().catch(() => false)) {
+            console.log('⚠️ ไม่พบแผนประกัน → กดปุ่ม "กลับสู่หน้าหลัก" แล้ว retry');
+            await page.getByRole('button', { name: 'กลับสู่หน้าหลัก' }).click();
+            await page.waitForTimeout(1000);
+            continue;
+        }
+
+        await expect(planList).toBeVisible();
+
+        // เช็กว่ามี "แผนแนะนำ" จริง — ถ้าไม่เจอ retry (สุ่มข้อมูลใหม่)
+        const recommendedExists = await page
+            .locator('#insurance-coverage-head-component-id')
+            .filter({ hasText: 'แผนแนะนำ' })
+            .first()
+            .isVisible({ timeout: 5000 })
+            .catch(() => false);
+        if (!recommendedExists) {
+            console.log('⚠️ ไม่เจอแผนแนะนำในหน้าผลลัพธ์ → retry สุ่มใหม่');
+            continue;
+        }
+
+        break;
+    }
 }
 
 async function completeRandomQuoteFlow(page) {
     console.log('Starting random quote selection process...');
 
     try {
-        // Car type selection
-        await selectSedanCarType(page);
 
+        await selectSedanCarType(page);
         // Random selections
         const brand = await selectRandomBrand(page);
         const model = await selectRandomModel(page);
@@ -228,242 +291,13 @@ async function completeRandomQuoteFlow(page) {
     }
 }
 
-// test.describe('Heygoody Short Term Quote Page', () => {
-//     const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/lt-individual/new/quote';
-
-//     // Helper Functions
-//     async function selectRandomFromListItems(page, description = '') {
-//         const buttons = page.getByRole('listitem').locator('button');
-//         const items = await buttons.allTextContents();
-
-//         if (items.length === 0) {
-//             throw new Error(`No items found for ${description}`);
-//         }
-
-//         const randomIndex = Math.floor(Math.random() * items.length);
-//         const randomItem = items[randomIndex];
-//         const selectedButton = buttons.filter({ hasText: randomItem }).first();
-
-//         console.log(`${description}: Selected "${randomItem}" (${randomIndex + 1}/${items.length})`);
-
-//         await selectedButton.click();
-//         await page.waitForTimeout(1000);
-
-//         return randomItem;
-//     }
-
-//     async function selectSedanCarType(page) {
-//         const sedanCard = page.locator('#ltIndividualQuoteCarTypeItemId0');
-//         await expect(sedanCard).toBeVisible();
-//         await sedanCard.click();
-//         await page.waitForTimeout(1000);
-//         await expect(page.getByText('รถเก๋ง, กระบะ 4 ประตู, รถตู้ไม่เกิน 7 ที่นั่ง')).toBeVisible();
-//         await page.waitForTimeout(1000);
-//     }
-
-//     async function selectRandomBrand(page) {
-//         const selectedBrand = await selectRandomFromListItems(page, 'Brand');
-//         await expect(page.getByRole('heading', { name: `ยี่ห้อรถ ${selectedBrand}` })).toBeVisible();
-//         return selectedBrand;
-//     }
-
-//     async function selectRandomModel(page) {
-//         return await selectRandomFromListItems(page, 'Model');
-//     }
-
-//     async function selectRandomYear(page) {
-//         return await selectRandomFromListItems(page, 'Year');
-//     }
-
-//     async function selectRandomSubmodel(page) {
-//         return await selectRandomFromListItems(page, 'Submodel');
-//     }
-
-//     async function selectRandomProvince(page) {
-//         return await selectRandomFromListItems(page, 'Province');
-//     }
-
-//     async function selectRandomInsurer(page) {
-//         return await selectRandomFromListItems(page, 'Insurer');
-//     }
-
-//     async function selectRandomBirthYear(page) {
-//         return await selectRandomFromListItems(page, 'Birth Year');
-//     }
-
-//     async function selectStartDate(page) {
-//         const day = page.locator('[data-day="2025-09-27"] > .focus-visible\\:border-ring');
-//         await day.click();
-//         await page.waitForTimeout(2000);
-//         console.log('Start Date: Selected 2025-09-27');
-//     }
-
-//     async function submitQuote(page) {
-//         const submitButton = page.locator('#quoteDocumentSubmitButtonId');
-//         await expect(submitButton).toBeVisible();
-//         await expect(submitButton).toBeEnabled();
-//         await submitButton.click();
-//         console.log('Quote submitted successfully');
-//     }
-
-//     async function completeRandomQuoteFlow(page) {
-//         console.log('Starting random quote selection process...');
-
-//         try {
-//             // Car type selection
-//             await selectSedanCarType(page);
-
-//             // Random selections
-//             const brand = await selectRandomBrand(page);
-//             const model = await selectRandomModel(page);
-//             const year = await selectRandomYear(page);
-//             const submodel = await selectRandomSubmodel(page);
-//             const province = await selectRandomProvince(page);
-//             const insurer = await selectRandomInsurer(page);
-//             const birthYear = await selectRandomBirthYear(page);
-
-//             // Date and submission
-//             await selectStartDate(page);
-//             await submitQuote(page);
-
-//             console.log('Random quote flow completed successfully');
-//             console.log(`Final selection: ${brand} ${model} ${year} ${submodel}, Province: ${province}, Insurer: ${insurer}, Birth Year: ${birthYear}`);
-
-//             return {
-//                 brand,
-//                 model,
-//                 year,
-//                 submodel,
-//                 province,
-//                 insurer,
-//                 birthYear
-//             };
-//         } catch (error) {
-//             console.error('Error in random quote flow:', error);
-//             throw error;
-//         }
-//     }
-
-//     test.beforeEach(async ({ page }) => {
-//         await page.goto(baseURL);
-//         await page.waitForLoadState('networkidle');
-//     });
-
-//     /* test('heygoody motor longterm e2e sedan - Random Selection', async ({ page }) => {
-//         await page.goto(baseURL);
-
-//         expect(page.url()).toBe(baseURL);
-//         await expect(page.getByRole('heading', { name: 'เช็คเบี้ยประกันรถยนต์ชั้นนำ' })).toBeVisible();
-//         await expect(page.getByText('เปรียบเทียบประกันรถง่ายๆ กับ heygoody')).toBeVisible();
-//         await page.waitForTimeout(1000);
-
-//         // Execute complete random quote flow
-//         const selections = await completeRandomQuoteFlow(page);
-
-//         // Additional assertions can be added here if needed
-//         expect(selections.brand).toBeDefined();
-//         expect(selections.model).toBeDefined();
-//     }); */
-
-//     // Multiple random tests
-//     /* for (let i = 1; i <= 1; i++) {
-//         test(`heygoody motor longterm e2e sedan - Random Test ${i}`, async ({ page }) => {
-//             await page.goto(baseURL);
-
-//             expect(page.url()).toBe(baseURL);
-//             await expect(page.getByRole('heading', { name: 'เช็คเบี้ยประกันรถยนต์ชั้นนำ' })).toBeVisible();
-//             await expect(page.getByText('เปรียบเทียบประกันรถง่ายๆ กับ heygoody')).toBeVisible();
-//             await page.waitForTimeout(1000);
-
-//             console.log(`\n=== Starting Random Test ${i} ===`);
-
-//             // Execute complete random quote flow
-//             const selections = await completeRandomQuoteFlow(page);
-
-//             console.log(`=== Random Test ${i} Completed Successfully ===\n`);
-
-//             // Verify that selections were made
-//             expect(selections.brand).toBeDefined();
-//             expect(selections.model).toBeDefined();
-//             expect(selections.year).toBeDefined();
-//             expect(selections.submodel).toBeDefined();
-//             expect(selections.province).toBeDefined();
-//             expect(selections.insurer).toBeDefined();
-//             expect(selections.birthYear).toBeDefined();
-//         });
-//     } */
-
-//     // Test with specific flow steps (for debugging)
-//     /* test('heygoody motor longterm e2e sedan - Step by Step Random', async ({ page }) => {
-//         await page.goto(baseURL);
-
-//         expect(page.url()).toBe(baseURL);
-//         await expect(page.getByRole('heading', { name: 'เช็คเบี้ยประกันรถยนต์ชั้นนำ' })).toBeVisible();
-//         await expect(page.getByText('เปรียบเทียบประกันรถง่ายๆ กับ heygoody')).toBeVisible();
-//         await page.waitForTimeout(1000);
-
-//         console.log('\n=== Step by Step Random Test ===');
-
-//         // Step 1: Select car type
-//         console.log('Step 1: Selecting car type...');
-//         await selectSedanCarType(page);
-
-//         // Step 2: Select brand
-//         console.log('Step 2: Selecting brand...');
-//         const brand = await selectRandomBrand(page);
-
-//         // Step 3: Select model
-//         console.log('Step 3: Selecting model...');
-//         const model = await selectRandomModel(page);
-
-//         // Step 4: Select year
-//         console.log('Step 4: Selecting year...');
-//         const year = await selectRandomYear(page);
-
-//         // Step 5: Select submodel
-//         console.log('Step 5: Selecting submodel...');
-//         const submodel = await selectRandomSubmodel(page);
-
-//         // Step 6: Select province
-//         console.log('Step 6: Selecting province...');
-//         const province = await selectRandomProvince(page);
-
-//         // Step 7: Select insurer
-//         console.log('Step 7: Selecting insurer...');
-//         const insurer = await selectRandomInsurer(page);
-
-//         // Step 8: Select birth year
-//         console.log('Step 8: Selecting birth year...');
-//         const birthYear = await selectRandomBirthYear(page);
-
-//         // Step 9: Select date
-//         console.log('Step 9: Selecting start date...');
-//         await selectStartDate(page);
-
-//         // Step 10: Submit
-//         console.log('Step 10: Submitting quote...');
-//         await submitQuote(page);
-
-//         console.log('=== Step by Step Test Completed ===\n');
-
-//         // Final verification
-//         expect(brand).toBeDefined();
-//         expect(model).toBeDefined();
-//         expect(year).toBeDefined();
-//         expect(submodel).toBeDefined();
-//         expect(province).toBeDefined();
-//         expect(insurer).toBeDefined();
-//         expect(birthYear).toBeDefined();
-//     }); */
-
-
-// });
-
 module.exports = {
     selectSedanCarType,
     selectSedanCarTypeEV,
     selectSedanCarTypePickup,
     selectSedanCarTypeVan,
+    selectSedanCarTypeJuristic,
+    selectSedanCarTypeEVJuristic,
     selectCustomAccordionPickup,
     selectRandomBrand,
     selectRandomModel,
@@ -473,5 +307,7 @@ module.exports = {
     selectRandomInsurer,
     selectRandomBirthYear,
     selectStartDate,
-    submitQuote
+    submitQuote,
+    goToQuoteWithRetry,
+    generatePlateAdvanced
 };
