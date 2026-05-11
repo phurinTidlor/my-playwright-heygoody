@@ -231,25 +231,61 @@ export async function closeLoginPopup(page, timeout = 3000) {
     await page.waitForTimeout(500);
 }
 
-/** ปิด popup email signup (ถ้ามี) — ปรากฏหลังคลิก checkout */
-export async function closeEmailPopup(page, timeout = 3000) {
-    // 1. ลอง icon X — รองรับทั้ง #id และ data-slot (เป็น element เดียวกันแต่ selector ต่าง)
-    const closeBtn = page.locator(
-        '#close-auth-section-sheet-icon-id, button[data-slot="dialog-close"]'
-    ).first();
-    if (await closeBtn.isVisible({ timeout }).catch(() => false)) {
-        await closeBtn.click({ force: true }).catch(() => { });
-        await page.waitForTimeout(500);
-        return;
+/** ปิด popup email signup (ถ้ามี) — รับมือทั้ง click และลบจาก DOM ถ้าจำเป็น */
+export async function closeEmailPopup(page, timeout = 5000) {
+    const startTime = Date.now();
+
+    // รอ popup ปรากฏก่อน (กรณีโผล่ช้า) — max 3 วินาที
+    const dialogSelector = '[role="dialog"]';
+    await page.waitForSelector(dialogSelector, { state: 'visible', timeout: 3000 }).catch(() => { });
+
+    while (Date.now() - startTime < timeout) {
+        // 1. preferred: "ไปซื้อต่อแบบไม่รับส่วนลด" — dismiss แบบถาวร
+        const skipBtn = page.getByRole('button', { name: 'ไปซื้อต่อแบบไม่รับส่วนลด' });
+        if (await skipBtn.isVisible({ timeout: 400 }).catch(() => false)) {
+            await skipBtn.click({ force: true }).catch(() => { });
+            await page.waitForTimeout(600);
+            continue;
+        }
+
+        // 2. fallback: icon X — ใน dialog ที่ visible
+        const closeBtn = page.locator(
+            '[role="dialog"] #close-auth-section-sheet-icon-id, [role="dialog"] button[data-slot="dialog-close"]'
+        ).first();
+        if (await closeBtn.isVisible({ timeout: 400 }).catch(() => false)) {
+            await closeBtn.click({ force: true }).catch(() => { });
+            await page.waitForTimeout(600);
+            continue;
+        }
+
+        // 3. Escape
+        const stillVisible = await page.locator('[role="dialog"]').first()
+            .isVisible({ timeout: 200 }).catch(() => false);
+        if (stillVisible) {
+            await page.keyboard.press('Escape').catch(() => { });
+            await page.waitForTimeout(400);
+            continue;
+        }
+
+        // ไม่มี popup เหลือ → break ออก (ยังต้องเคลียร์ overlay ที่อาจค้าง)
+        break;
     }
 
-    // 2. fallback: ปุ่ม "ไปซื้อต่อแบบไม่รับส่วนลด" (popup signup แบบใหม่ — เจอใน juristic flow)
-    const skipBtn = page.getByRole('button', { name: 'ไปซื้อต่อแบบไม่รับส่วนลด' });
-    if (await skipBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
-        await skipBtn.click({ force: true }).catch(() => { });
-        await page.waitForTimeout(500);
-        return;
-    }
+    // เสมอท้าย: เคลียร์ overlay/backdrop ที่ค้างใน DOM (block pointer events แม้ dialog content ปิดแล้ว)
+    await page.evaluate(() => {
+        document.querySelectorAll('[role="dialog"]').forEach(d => {
+            const txt = d.textContent || '';
+            if (txt.includes('สมาชิกได้รับดีลราคาพิเศษ') ||
+                txt.includes('ไปซื้อต่อแบบไม่รับส่วนลด')) {
+                d.remove();
+            }
+        });
+        document.querySelectorAll('[data-slot="dialog-overlay"]').forEach(o => o.remove());
+        // unlock Radix scroll/pointer lock
+        document.body.style.pointerEvents = '';
+        document.body.style.overflow = '';
+        document.body.removeAttribute('data-scroll-locked');
+    }).catch(() => { });
 }
 
 /** กรอก input + blur */
@@ -637,7 +673,19 @@ async function _fillDriverDialog(page, driverData, { foreign = false } = {}) {
     }
 
     await humanFillText(dialog.locator('#driver-driving-license-input-id'), driverData.license);
-    await randomSelectTitleNameDriver1(page);
+
+    // คำนำหน้าชื่อ — scope ใน dialog (รองรับทั้ง individual + juristic ที่ใช้ id ต่างกัน)
+    const titleCombo = dialog.getByRole('combobox', { name: /คำนำหน้า/ });
+    await expect(titleCombo).toBeVisible({ timeout: 10000 });
+    await titleCombo.click();
+    const titleListbox = page.locator('[role="listbox"]').last();
+    await expect(titleListbox).toBeVisible();
+    const titleOptions = titleListbox.locator('[role="option"]');
+    const titleCount = await titleOptions.count();
+    expect(titleCount).toBeGreaterThan(0);
+    await titleOptions.nth(Math.floor(Math.random() * titleCount)).click();
+    await page.waitForTimeout(500);
+
     await humanFillText(dialog.locator('#driver-name-input-id'), driverData.name);
     await humanFillText(dialog.locator('#driver-last-name-input-id'), driverData.lastName);
 
@@ -695,11 +743,27 @@ export async function addAdditionalDriver(page, driverData, options = {}) {
  * กรอกข้อมูล "ที่อยู่ตามบัตรประชาชน" ครบทุกช่อง + เลือก district/sub-district + กดบันทึก
  * @param {import('@playwright/test').Page} page
  * @param {{houseNo, village, moo, alley, street, zipcode}} addressData - ข้อมูลที่อยู่ (จาก test-data)
- * @param {string} openButtonId - ID ของปุ่มเปิด form (ต่างกันใน flow bymyself กับ for-others)
+ * @param {string} openButtonId - ID ของปุ่มเปิด form (ต่างกันใน flow bymyself/for-others/juristic)
  */
 export async function fillAddressInfo(page, addressData, openButtonId = 'address-information-header-id') {
-    await openAccordionByText(page, 'ที่อยู่ตามบัตรประชาชน');
-    await page.locator(`#${openButtonId}`).click();
+    // 1. เปิด accordion address — รองรับทั้ง individual ("ที่อยู่ตามบัตรประชาชน") + juristic ("ที่อยู่บริษัทตามหนังสือจดทะเบียน")
+    const accordion = page.locator('button[data-slot="accordion-trigger"]').filter({
+        hasText: /ที่อยู่ตามบัตรประชาชน|ที่อยู่บริษัทตามหนังสือจดทะเบียน/
+    }).first();
+    await accordion.waitFor({ state: 'visible', timeout: 10000 });
+    const expanded = await accordion.getAttribute('aria-expanded');
+    if (expanded !== 'true') {
+        await accordion.evaluate(el => el.click());
+        await page.waitForTimeout(300);
+    }
+
+    // 2. คลิกปุ่ม "เพิ่มข้อมูลที่อยู่" — ลอง id ก่อน fall back หา button by text
+    const openById = page.locator(`#${openButtonId}`);
+    if (await openById.isVisible({ timeout: 1000 }).catch(() => false)) {
+        await openById.click();
+    } else {
+        await page.getByRole('button', { name: 'เพิ่มข้อมูลที่อยู่' }).click();
+    }
 
     await humanFillText(page.locator('#house-no-input-id'), addressData.houseNo);
     await humanFillText(page.locator('#village-building-input-id'), addressData.village);

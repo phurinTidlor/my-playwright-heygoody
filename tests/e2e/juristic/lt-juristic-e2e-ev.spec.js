@@ -5,29 +5,28 @@ const {
     selectSedanCarTypeEVJuristic,
     generatePlateAdvanced,
 } = require('../../../helpers/quote-helper-random');
-const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
+const { insured, driver, foreignDriver, address, juristic } = require('../../../helpers/test-data');
 const { urls } = require('../../../helpers/config');
 
 import {
-    selectBuyForMyself,
-    selectBuyForOthers,
     closeLoginPopup,
     closeEmailPopup,
-    testValidValues,
-    selectRandomTitleName,
-    generateRandomThaiName,
-    generateRandomThaiLastName,
-    generateUniqueThaiIDCard,
-    generateUniqueLicense,
-    generateUniquePassport,
-    generateChassisNumber,
-    generateEngineNumber,
-    humanFillText,
     selectRadioByLabel,
     openAccordionByText,
     fillAddressInfo,
     fillDriverInfoManual,
     addAdditionalDriver,
+    fillJuristicCompanyInfo,
+    fillJuristicSignatory,
+    generateUniqueThaiIDCard,
+    generateUniqueLicense,
+    generateUniquePassport,
+    generateUniqueJuristicId,
+    generateRandomThaiName,
+    generateRandomThaiLastName,
+    generateChassisNumber,
+    generateEngineNumber,
+    humanFillText,
     maybeSelectCarColor,
 } from '../../../helpers/orferinfo-form-helpers';
 
@@ -39,225 +38,18 @@ const JURISTIC_EV_QUOTE_OPTIONS = {
     welcomeText: 'เช็คเบี้ยประกันรถนิติบุคคล',
 };
 
-test('heygoody longterm e2e Ev bymyself flow', async ({ page }) => {
-    test.setTimeout(120_000);
-
-    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
+/** ขั้นตอนร่วมก่อนถึง driver section: quote → plan → checkout → company + signatory + email/phone */
+async function setupJuristicEvOrder(page, extraOptions = {}) {
+    await goToQuoteWithRetry(page, baseURL, { ...JURISTIC_EV_QUOTE_OPTIONS, ...extraOptions });
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
 
+    // เลือกแผนแนะนำ
     const recommendedCard = page
         .locator('#insurance-coverage-head-component-id')
         .filter({ hasText: 'แผนแนะนำ' })
         .locator('..');
-
-    await recommendedCard
-        .locator('#choose-plan-button-id')
-        .click();
-
-    await expect(
-        recommendedCard.locator('text=แผนแนะนำ')
-    ).toBeVisible();
-    await page.waitForTimeout(1000);
-
-    await page.locator('#checkout-button-id').click();
-    await page.waitForTimeout(1000);
-
-    await closeEmailPopup(page);
-    await selectBuyForMyself(page);
-
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
-
-    const validIDcard = Array.from({ length: 1 }, () =>
-        generateUniqueThaiIDCard()
-    );
-
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
-
-    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
-    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
-    await page.waitForTimeout(500);
-
-    const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
-    await phoneInput.blur();
-    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
-
-    // Driver 1 = ตัวเอง (ใช้ข้อมูลผู้เอาประกัน)
-    await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
-    await selectRadioByLabel(page, 'driver1-insured-radio-id');
-    await humanFillText(
-        page.locator('#driver1-license-input-id'),
-        generateUniqueLicense()
-    );
-
-    await fillAddressInfo(page, address, 'add-address-info-button-id');
-
-    await openAccordionByText(page, 'ข้อมูลรถ');
-
-    await humanFillText(
-        page.locator('#license-plate-id'),
-        await generatePlateAdvanced()
-    );
-    await page.waitForTimeout(500);
-    await humanFillText(
-        page.locator('#chassis-number-id'),
-        generateChassisNumber()
-    );
-    await humanFillText(
-        page.locator('#engine-number-id'),
-        generateEngineNumber()
-    );
-    await page.waitForTimeout(500);
-    await maybeSelectCarColor(page);
-    await page.waitForTimeout(3000);
-
-    const nextBtn = page.locator('#next-button-id');
-    await nextBtn.click();
-
-    // assert ว่า OTP dialog โผล่
-    const otpDialog = page.locator('[role="dialog"]');
-    await expect(otpDialog).toBeVisible();
-
-    await page.pause();
-});
-
-test('heygoody longterm e2e Ev by for others flow', async ({ page }) => {
-    test.setTimeout(120_000);
-
-    // EV for-others flow มีการเลือก CMI ก่อนกด "ดูแผน"
-    await goToQuoteWithRetry(page, baseURL, {
-        ...JURISTIC_EV_QUOTE_OPTIONS,
-        beforeSubmit: async (p) => {
-            const prbCard = p.locator('#quote-car-cmi-card-id');
-            await expect(prbCard).toBeVisible();
-            await prbCard.click();
-        },
-    });
-    await page.waitForTimeout(1000);
-
-    await closeLoginPopup(page);
-
-    const recommendedCard = page
-        .locator('#insurance-coverage-head-component-id')
-        .filter({ hasText: 'แผนแนะนำ' })
-        .locator('..');
-
-    await recommendedCard
-        .locator('#choose-plan-button-id')
-        .click();
-
-    await expect(
-        recommendedCard.locator('text=แผนแนะนำ')
-    ).toBeVisible();
-    await page.waitForTimeout(1000);
-
-    await page.locator('#checkout-button-id').click();
-    await page.waitForTimeout(1000);
-
-    await closeEmailPopup(page);
-    await selectBuyForOthers(page);
-
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
-
-    const validIDcard = Array.from({ length: 1 }, () =>
-        generateUniqueThaiIDCard()
-    );
-
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
-
-    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
-    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
-    await page.waitForTimeout(500);
-
-    const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
-    await phoneInput.blur();
-    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
-
-    await fillDriverInfoManual(page, driver);
-
-    await fillAddressInfo(page, address, 'add-address-info-button-id');
-
-    await openAccordionByText(page, 'ข้อมูลรถ');
-
-    await humanFillText(
-        page.locator('#license-plate-id'),
-        await generatePlateAdvanced()
-    );
-    await page.waitForTimeout(500);
-    await humanFillText(
-        page.locator('#chassis-number-id'),
-        generateChassisNumber()
-    );
-    await humanFillText(
-        page.locator('#engine-number-id'),
-        generateEngineNumber()
-    );
-    await page.waitForTimeout(500);
-    await maybeSelectCarColor(page);
-    await page.waitForTimeout(3000);
-
-    const nextBtn = page.locator('#next-button-id');
-    await nextBtn.click();
-
-    // assert ว่า OTP dialog โผล่
-    const otpDialog = page.locator('[role="dialog"]');
-    await expect(otpDialog).toBeVisible();
-
-    await page.pause();
-});
-
-test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
-    test.setTimeout(180_000);
-
-    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
-    await page.waitForTimeout(1000);
-
-    await closeLoginPopup(page);
-
-    const recommendedCard = page
-        .locator('#insurance-coverage-head-component-id')
-        .filter({ hasText: 'แผนแนะนำ' })
-        .locator('..');
-
     await recommendedCard.locator('#choose-plan-button-id').click();
     await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
     await page.waitForTimeout(1000);
@@ -265,32 +57,22 @@ test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
     await page.locator('#checkout-button-id').click();
     await page.waitForTimeout(1000);
 
+    await closeLoginPopup(page);
     await closeEmailPopup(page);
-    await selectBuyForOthers(page);
 
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
+    // ข้อมูลบริษัท + ผู้เซ็นรับรอง
+    await fillJuristicCompanyInfo(page, {
+        juristicId: generateUniqueJuristicId(),
+        companyName: juristic.companyName,
+        branch: juristic.branch,
+    });
+    await fillJuristicSignatory(page, {
+        idCard: generateUniqueThaiIDCard(),
+        firstName: generateRandomThaiName(),
+        lastName: generateRandomThaiLastName('เฮกู้ดดี้'),
+    });
 
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
-
+    // email + phone
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
     await page.waitForTimeout(500);
@@ -299,6 +81,70 @@ test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
     await phoneInput.pressSequentially(insured.phone, { delay: 40 });
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
+}
+
+/** ขั้นตอนร่วมหลัง driver: ที่อยู่ + ข้อมูลรถ (incl. engine number) + กดถัดไป + assert OTP */
+async function finalizeJuristicEvOrder(page) {
+    await fillAddressInfo(page, address);
+
+    await openAccordionByText(page, 'ข้อมูลรถ');
+    await humanFillText(page.locator('#license-plate-id'), await generatePlateAdvanced());
+    await page.waitForTimeout(500);
+    await humanFillText(page.locator('#chassis-number-id'), generateChassisNumber());
+    await humanFillText(page.locator('#engine-number-id'), generateEngineNumber());
+    await page.waitForTimeout(500);
+    await maybeSelectCarColor(page);
+    await page.waitForTimeout(3000);
+
+    await page.locator('#next-button-id').click();
+    await expect(page.locator('[role="dialog"]')).toBeVisible();
+    await page.pause();
+}
+
+// ─────────────────────────────────────────────────────────────────────
+
+test('heygoody longterm e2e juristic ev bymyself flow', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    await setupJuristicEvOrder(page);
+
+    // Driver 1 = ใช้ข้อมูลเจ้าของรถ (บริษัท/signatory)
+    await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
+    await selectRadioByLabel(page, 'driver1-insured-radio-id');
+    await humanFillText(
+        page.locator('#driver1-license-input-id'),
+        generateUniqueLicense()
+    );
+
+    await finalizeJuristicEvOrder(page);
+});
+
+test('heygoody longterm e2e juristic ev by for others flow', async ({ page }) => {
+    test.setTimeout(120_000);
+
+    // EV for-others มีการเลือก CMI ก่อนกด "ดูแผน"
+    await setupJuristicEvOrder(page, {
+        beforeSubmit: async (p) => {
+            const prbCard = p.locator('#quote-car-cmi-card-id');
+            await expect(prbCard).toBeVisible();
+            await prbCard.click();
+        },
+    });
+
+    // Driver 1 = manual entry
+    await fillDriverInfoManual(page, {
+        ...driver,
+        idCard: generateUniqueThaiIDCard(),
+        license: generateUniqueLicense(),
+    });
+
+    await finalizeJuristicEvOrder(page);
+});
+
+test('heygoody longterm e2e juristic ev add 5 drivers flow', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    await setupJuristicEvOrder(page);
 
     const driverNames = [
         'ระบุคนที่หนึ่ง',
@@ -308,7 +154,6 @@ test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
         'ระบุคนที่ห้า',
     ];
 
-    // Driver คนแรก
     await fillDriverInfoManual(page, {
         ...driver,
         idCard: generateUniqueThaiIDCard(),
@@ -316,7 +161,6 @@ test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
         name: driverNames[0],
     });
 
-    // เพิ่ม driver คนที่ 2-5
     for (let i = 1; i < 5; i++) {
         await addAdditionalDriver(page, {
             ...driver,
@@ -326,91 +170,13 @@ test('heygoody longterm e2e Ev add 5 drivers flow', async ({ page }) => {
         });
     }
 
-    await fillAddressInfo(page, address, 'add-address-info-button-id');
-
-    await openAccordionByText(page, 'ข้อมูลรถ');
-
-    await humanFillText(
-        page.locator('#license-plate-id'),
-        await generatePlateAdvanced()
-    );
-    await page.waitForTimeout(500);
-    await humanFillText(
-        page.locator('#chassis-number-id'),
-        generateChassisNumber()
-    );
-    await humanFillText(
-        page.locator('#engine-number-id'),
-        generateEngineNumber()
-    );
-    await page.waitForTimeout(500);
-    await maybeSelectCarColor(page);
-    await page.waitForTimeout(3000);
-
-    const nextBtn = page.locator('#next-button-id');
-    await nextBtn.click();
-
-    // assert ว่า OTP dialog โผล่
-    const otpDialog = page.locator('[role="dialog"]');
-    await expect(otpDialog).toBeVisible();
-
-    await page.pause();
+    await finalizeJuristicEvOrder(page);
 });
 
-test('heygoody longterm e2e Ev add 5 foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e juristic ev add 5 foreign drivers flow', async ({ page }) => {
     test.setTimeout(180_000);
 
-    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
-    await page.waitForTimeout(1000);
-
-    await closeLoginPopup(page);
-
-    const recommendedCard = page
-        .locator('#insurance-coverage-head-component-id')
-        .filter({ hasText: 'แผนแนะนำ' })
-        .locator('..');
-
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
-    await page.waitForTimeout(1000);
-
-    await page.locator('#checkout-button-id').click();
-    await page.waitForTimeout(1000);
-
-    await closeEmailPopup(page);
-    await selectBuyForOthers(page);
-
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
-
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
-
-    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
-    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
-    await page.waitForTimeout(500);
-
-    const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
-    await phoneInput.blur();
-    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
+    await setupJuristicEvOrder(page);
 
     const foreignNames = [
         { name: 'John', lastName: 'Doe' },
@@ -420,7 +186,6 @@ test('heygoody longterm e2e Ev add 5 foreign drivers flow', async ({ page }) => 
         { name: 'Mike', lastName: 'Johnson' },
     ];
 
-    // Driver คนแรก — ต่างชาติ
     await fillDriverInfoManual(
         page,
         {
@@ -432,7 +197,6 @@ test('heygoody longterm e2e Ev add 5 foreign drivers flow', async ({ page }) => 
         { foreign: true }
     );
 
-    // เพิ่ม driver คนที่ 2-5 — ต่างชาติ
     for (let i = 1; i < 5; i++) {
         await addAdditionalDriver(
             page,
@@ -446,93 +210,15 @@ test('heygoody longterm e2e Ev add 5 foreign drivers flow', async ({ page }) => 
         );
     }
 
-    await fillAddressInfo(page, address, 'add-address-info-button-id');
-
-    await openAccordionByText(page, 'ข้อมูลรถ');
-
-    await humanFillText(
-        page.locator('#license-plate-id'),
-        await generatePlateAdvanced()
-    );
-    await page.waitForTimeout(500);
-    await humanFillText(
-        page.locator('#chassis-number-id'),
-        generateChassisNumber()
-    );
-    await humanFillText(
-        page.locator('#engine-number-id'),
-        generateEngineNumber()
-    );
-    await page.waitForTimeout(500);
-    await maybeSelectCarColor(page);
-    await page.waitForTimeout(3000);
-
-    const nextBtn = page.locator('#next-button-id');
-    await nextBtn.click();
-
-    // assert ว่า OTP dialog โผล่
-    const otpDialog = page.locator('[role="dialog"]');
-    await expect(otpDialog).toBeVisible();
-
-    await page.pause();
+    await finalizeJuristicEvOrder(page);
 });
 
-test('heygoody longterm e2e Ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
+test('heygoody longterm e2e juristic ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
     test.setTimeout(120_000);
 
-    await goToQuoteWithRetry(page, baseURL, JURISTIC_EV_QUOTE_OPTIONS);
-    await page.waitForTimeout(1000);
+    await setupJuristicEvOrder(page);
 
-    await closeLoginPopup(page);
-
-    const recommendedCard = page
-        .locator('#insurance-coverage-head-component-id')
-        .filter({ hasText: 'แผนแนะนำ' })
-        .locator('..');
-
-    await recommendedCard.locator('#choose-plan-button-id').click();
-    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
-    await page.waitForTimeout(1000);
-
-    await page.locator('#checkout-button-id').click();
-    await page.waitForTimeout(1000);
-
-    await closeEmailPopup(page);
-    await selectBuyForMyself(page);
-
-    const idCardInput = page.locator('#insured-id-card-input-id');
-    await expect(idCardInput).toBeVisible();
-
-    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
-    await testValidValues(page, idCardInput, validIDcard);
-    await page.waitForTimeout(500);
-
-    await selectRandomTitleName(page);
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
-    await page.waitForTimeout(500);
-
-    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
-    await page.waitForTimeout(500);
-
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
-
-    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
-    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
-    await page.waitForTimeout(500);
-
-    const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
-    await phoneInput.blur();
-    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
-
-    // Driver 1 = ตัวเอง (ใช้ข้อมูลผู้เอาประกัน)
+    // Driver 1 = ใช้ข้อมูลเจ้าของรถ
     await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
     await selectRadioByLabel(page, 'driver1-insured-radio-id');
     await humanFillText(
@@ -561,33 +247,5 @@ test('heygoody longterm e2e Ev bymyself add Thai+foreign drivers flow', async ({
         { foreign: true }
     );
 
-    await fillAddressInfo(page, address, 'add-address-info-button-id');
-
-    await openAccordionByText(page, 'ข้อมูลรถ');
-
-    await humanFillText(
-        page.locator('#license-plate-id'),
-        await generatePlateAdvanced()
-    );
-    await page.waitForTimeout(500);
-    await humanFillText(
-        page.locator('#chassis-number-id'),
-        generateChassisNumber()
-    );
-    await humanFillText(
-        page.locator('#engine-number-id'),
-        generateEngineNumber()
-    );
-    await page.waitForTimeout(500);
-    await maybeSelectCarColor(page);
-    await page.waitForTimeout(3000);
-
-    const nextBtn = page.locator('#next-button-id');
-    await nextBtn.click();
-
-    // assert ว่า OTP dialog โผล่
-    const otpDialog = page.locator('[role="dialog"]');
-    await expect(otpDialog).toBeVisible();
-
-    await page.pause();
+    await finalizeJuristicEvOrder(page);
 });

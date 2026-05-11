@@ -364,6 +364,30 @@ header {
       </div>
     </div>
 
+    <!-- LT Affiliate -->
+    <div class="section">
+      <div class="sec-hd">
+        <span class="sec-badge bl">Long Term</span>
+        <span class="sec-title">Affiliate — ผ่านตัวแทน</span>
+        <div class="sec-div"></div>
+      </div>
+      <div class="tg c2">
+        <div class="sub-lbl" style="grid-column:1/-1">long-term / affiliate</div>
+        <div class="tc blue" id="card-lt-aff-nonev" onclick="doRunSingle('lt-aff-nonev')">
+          <div class="ct"><div class="ci blue">🤝</div><div class="csd"></div></div>
+          <div><div class="cn">None EV</div><div class="cd">non-electric vehicle<br>long term affiliate</div></div>
+          <div class="clr" id="lr-lt-aff-nonev"></div>
+          <div class="cb"><span class="ctag t-bl">affiliate / non-ev</span><button class="crb" onclick="se(event);doRunSingle('lt-aff-nonev')">run ▸</button></div>
+        </div>
+        <div class="tc blue" id="card-lt-aff-ev" onclick="doRunSingle('lt-aff-ev')">
+          <div class="ct"><div class="ci blue">⚡</div><div class="csd"></div></div>
+          <div><div class="cn">EV</div><div class="cd">electric vehicle<br>long term affiliate</div></div>
+          <div class="clr" id="lr-lt-aff-ev"></div>
+          <div class="cb"><span class="ctag t-bl">affiliate / ev</span><button class="crb" onclick="se(event);doRunSingle('lt-aff-ev')">run ▸</button></div>
+        </div>
+      </div>
+    </div>
+
     <!-- LT Juristic -->
     <div class="section">
       <div class="sec-hd">
@@ -457,13 +481,15 @@ header {
 const se = e => e.stopPropagation();
 
 const TESTS = {
-  'lt-ind-nonev':  { label:'LT Individual · None EV', spec:'tests/e2e/longterm/longterm-e2e-non-ev.spec.js' },
-  'lt-ind-ev':     { label:'LT Individual · EV',      spec:'tests/e2e/longterm/longterm-e2e-ev.spec.js' },
-  'lt-ind-pickup': { label:'LT Individual · Pickup',  spec:'tests/e2e/longterm/longterm-e2e-pickup.spec.js' },
-  'lt-ind-van':    { label:'LT Individual · Van',     spec:'tests/e2e/longterm/longterm-e2e-van.spec.js' },
-  'lt-jur-nonev':  { label:'LT Juristic · None EV',   spec:'tests/lt-juristic/quote-juristic-nonev.spec.js' },
-  'lt-jur-ev':     { label:'LT Juristic · EV',        spec:'tests/lt-juristic/quote-juristic-ev.spec.js' },
-  'st-nonev':      { label:'ST · None EV',            spec:'tests/e2e/shortterm/shortterm-e2e-non-ev.spec.js' },
+  'lt-ind-nonev':   { label:'LT Individual · None EV', spec:'tests/e2e/longterm/longterm-e2e-non-ev.spec.js' },
+  'lt-ind-ev':      { label:'LT Individual · EV',      spec:'tests/e2e/longterm/longterm-e2e-ev.spec.js' },
+  'lt-ind-pickup':  { label:'LT Individual · Pickup',  spec:'tests/e2e/longterm/longterm-e2e-pickup.spec.js' },
+  'lt-ind-van':     { label:'LT Individual · Van',     spec:'tests/e2e/longterm/longterm-e2e-van.spec.js' },
+  'lt-aff-nonev':   { label:'LT Affiliate · None EV',  spec:'tests/e2e/longterm/affiliateLT-e2e-non-ev.spec.js' },
+  'lt-aff-ev':      { label:'LT Affiliate · EV',       spec:'tests/e2e/longterm/affiliateLT-e2e-ev.spec.js' },
+  'lt-jur-nonev':   { label:'LT Juristic · None EV',   spec:'tests/e2e/juristic/lt-juristic-e2e-non-ev.spec.js' },
+  'lt-jur-ev':      { label:'LT Juristic · EV',        spec:'tests/e2e/juristic/lt-juristic-e2e-ev.spec.js' },
+  'st-nonev':       { label:'ST · None EV',            spec:'tests/e2e/shortterm/shortterm-e2e-non-ev.spec.js' },
 };
 
 let cardSt = {};
