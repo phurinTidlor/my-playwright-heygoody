@@ -1,4 +1,6 @@
 import { expect } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 
 /** เลือกซื้อให้ตัวเอง (ใช้แทบทุก test) */
 export async function selectBuyForMyself(page) {
@@ -396,23 +398,96 @@ export async function fillThaiIdCard(input, value) {
     await input.evaluate(el => el.blur());
 }
 
-export function generateRandomThaiName(prefix = 'ทดสอบ') {
-    const thaiNumbers = ['หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+/** แปลงเลขจำนวนเต็ม → คำอ่านภาษาไทย (เช่น 11 → 'สิบเอ็ด', 101 → 'หนึ่งร้อยเอ็ด') */
+function intToThaiWord(n) {
+    if (n === 0) return 'ศูนย์';
+    const digits = ['', 'หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
+    const units = ['', 'สิบ', 'ร้อย', 'พัน', 'หมื่น', 'แสน'];
 
-    const randomWord =
-        thaiNumbers[Math.floor(Math.random() * thaiNumbers.length)];
+    const s = String(n);
+    const len = s.length;
+    let result = '';
 
-    return `${prefix}${randomWord}`;
+    for (let i = 0; i < len; i++) {
+        const d = parseInt(s[i], 10);
+        const place = len - 1 - i;
+        if (d === 0) continue;
+
+        if (place === 1) {
+            // หลักสิบ
+            if (d === 1) result += 'สิบ';
+            else if (d === 2) result += 'ยี่สิบ';
+            else result += digits[d] + 'สิบ';
+        } else if (place === 0 && d === 1 && len > 1) {
+            // หลักหน่วย + n > 9 → "เอ็ด"
+            result += 'เอ็ด';
+        } else {
+            result += digits[d] + units[place];
+        }
+    }
+
+    return result;
 }
 
-/** Random last name */
+// counters เรียงต่อเนื่องข้าม run ผ่านไฟล์ persistent state — แยกตาม prefix ของแต่ละ flow
+const STATE_DIR = path.resolve(process.cwd(), '.test-state');
+const STATE_FILE = path.join(STATE_DIR, 'thai-name-counters.json');
+
+/**
+ * จุดเริ่มต้นเฉพาะ flow (default = 1 → 'หนึ่ง')
+ * - ทดสอบ (LT individual) คงเดิมที่ 10 — เพื่อ continuity กับ run ก่อน ๆ
+ */
+const FLOW_START = {
+    'ทดสอบ': 10,
+};
+
+/** state shape: { name: { [prefix]: n }, lastName: { [prefix]: n } } */
+let _state = (() => {
+    try {
+        const parsed = JSON.parse(fs.readFileSync(STATE_FILE, 'utf8'));
+        return {
+            name: (parsed && parsed.name && typeof parsed.name === 'object') ? parsed.name : {},
+            lastName: (parsed && parsed.lastName && typeof parsed.lastName === 'object') ? parsed.lastName : {},
+        };
+    } catch {
+        return { name: {}, lastName: {} };
+    }
+})();
+
+function saveState() {
+    if (!fs.existsSync(STATE_DIR)) {
+        fs.mkdirSync(STATE_DIR, { recursive: true });
+    }
+    fs.writeFileSync(STATE_FILE, JSON.stringify(_state, null, 2));
+}
+
+function nextThaiWord(bucket, prefix) {
+    const counters = _state[bucket];
+    if (!Number.isInteger(counters[prefix])) {
+        counters[prefix] = FLOW_START[prefix] ?? 1;
+    }
+    const n = counters[prefix];
+    counters[prefix] = n + 1;
+    saveState();
+    return `${prefix}${intToThaiWord(n)}`;
+}
+
+/**
+ * สร้างชื่อคนไทยเรียงต่อเนื่อง — แต่ละ prefix มี counter แยกกัน + persist ข้าม run
+ *
+ *   generateRandomThaiName('ทดสอบ')    → ทดสอบสิบ, ทดสอบสิบเอ็ด, ... (เริ่มที่ 10)
+ *   generateRandomThaiName('จูริสติค')   → จูริสติคหนึ่ง, จูริสติคสอง, ... (เริ่มที่ 1)
+ *   generateRandomThaiName('ระยะสั้น')  → ระยะสั้นหนึ่ง, ระยะสั้นสอง, ... (เริ่มที่ 1)
+ */
+export function generateRandomThaiName(prefix = 'ทดสอบ') {
+    return nextThaiWord('name', prefix);
+}
+
+/**
+ * สร้างนามสกุลคนไทยเรียงต่อเนื่อง — แต่ละ prefix มี counter แยกกัน + persist ข้าม run
+ */
 export function generateRandomThaiLastName(prefix = 'เฮกู้ดดี้') {
-    const thaiNumbers = ['หนึ่ง', 'สอง', 'สาม', 'สี่', 'ห้า', 'หก', 'เจ็ด', 'แปด', 'เก้า'];
-
-    const randomWord =
-        thaiNumbers[Math.floor(Math.random() * thaiNumbers.length)];
-
-    return `${prefix}${randomWord}`;
+    return nextThaiWord('lastName', prefix);
 }
 
 /** สุ่มเลขบัตรประชาชนไทย 13 หลัก พร้อม checksum ที่ถูกต้อง */
@@ -446,11 +521,16 @@ export function generateUniqueThaiIDCard() {
 
 const _usedLicenses = new Set();
 
-/** สุ่มเลขใบขับขี่ 13 หลัก แบบไม่ซ้ำในรอบ run เดียวกัน */
+/**
+ * สร้างเลขใบขับขี่ format `DLHEY` + เลข 4 หลัก เรียงต่อกันแบบไม่ซ้ำในรอบ run เดียวกัน
+ * เช่น DLHEY0001, DLHEY0002, ...
+ */
 export function generateUniqueLicense() {
     let lic;
+    let counter = _usedLicenses.size + 1;
     do {
-        lic = String(Math.floor(Math.random() * 1e13)).padStart(13, '0');
+        lic = `DLHEY${String(counter).padStart(4, '0')}`;
+        counter++;
     } while (_usedLicenses.has(lic));
 
     _usedLicenses.add(lic);
@@ -674,8 +754,10 @@ async function _fillDriverDialog(page, driverData, { foreign = false } = {}) {
 
     await humanFillText(dialog.locator('#driver-driving-license-input-id'), driverData.license);
 
-    // คำนำหน้าชื่อ — scope ใน dialog (รองรับทั้ง individual + juristic ที่ใช้ id ต่างกัน)
-    const titleCombo = dialog.getByRole('combobox', { name: /คำนำหน้า/ });
+    // คำนำหน้าชื่อ — scope ใน dialog, ลองหลาย selector
+    const titleCombo = dialog.locator('#title-name-select-id, #insured-title-name-select-id')
+        .or(dialog.getByRole('combobox', { name: /คำนำหน้า/ }))
+        .first();
     await expect(titleCombo).toBeVisible({ timeout: 10000 });
     await titleCombo.click();
     const titleListbox = page.locator('[role="listbox"]').last();

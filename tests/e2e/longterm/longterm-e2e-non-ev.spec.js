@@ -2,6 +2,7 @@ const { test, expect, request } = require('@playwright/test');
 
 const { goToQuoteWithRetry, generatePlateAdvanced } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
+const { bypassOTP, acceptConsentAndPay, selectPaymentMethodAndConfirm, triggerPaymentWebhook } = require('../../../helpers/api-helpers');
 import {
     selectBuyForMyself,
     selectBuyForOthers,
@@ -21,7 +22,8 @@ import {
     fillAddressInfo,
     fillDriverInfoManual,
     addAdditionalDriver,
-    randomSelectColor
+    randomSelectColor,
+    pickDateOfBirth,
 } from '../../../helpers/orferinfo-form-helpers';
 
 
@@ -29,7 +31,7 @@ const { urls } = require('../../../helpers/config');
 const baseURL = urls.ltIndividualQuote;
 
 test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await goToQuoteWithRetry(page, baseURL);
     await page.waitForTimeout(1000);
 
@@ -85,14 +87,7 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     await humanFillText(lastNameInput, randomLastname);
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-
-
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(
         page.locator('#insured-email-input-id'),
@@ -145,13 +140,105 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 
 
 });
 
+test('heygoody longterm e2e non-ev bymyself flow without CMI (no พ.ร.บ.)', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    // default หน้า quote = พ.ร.บ. ถูกเลือกอยู่ → คลิก #quote-car-cmi-card-id เพื่อ untoggle
+    await goToQuoteWithRetry(page, baseURL, {
+        beforeSubmit: async (p) => {
+            const prbCard = p.locator('#quote-car-cmi-card-id');
+            await expect(prbCard).toBeVisible();
+            await prbCard.click();
+        },
+    });
+    await page.waitForTimeout(1000);
+
+    await closeLoginPopup(page);
+
+    const recommendedCard = page
+        .locator('#insurance-coverage-head-component-id')
+        .filter({ hasText: 'แผนแนะนำ' })
+        .locator('..');
+
+    await recommendedCard.locator('#choose-plan-button-id').click();
+    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await page.waitForTimeout(1000);
+
+    await page.locator('#checkout-button-id').click();
+    await page.waitForTimeout(1000);
+
+    await closeEmailPopup(page);
+    await selectBuyForMyself(page);
+
+    const idCardInput = page.locator('#insured-id-card-input-id');
+    await expect(idCardInput).toBeVisible();
+
+    const validIDcard = Array.from({ length: 1 }, () => generateUniqueThaiIDCard());
+    await testValidValues(page, idCardInput, validIDcard);
+    await page.waitForTimeout(500);
+
+    await selectRandomTitleName(page);
+    await page.waitForTimeout(500);
+
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await page.waitForTimeout(500);
+
+    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
+    await page.waitForTimeout(500);
+
+    await pickDateOfBirth(page);
+
+    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
+    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
+    await page.waitForTimeout(500);
+
+    const phoneInput = page.locator('#insured-phone-number-input-id');
+    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
+    await phoneInput.blur();
+    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
+
+    await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
+    await selectRadioByLabel(page, 'driver1-insured-radio-id');
+    await humanFillText(page.locator('#driver1-license-input-id'), generateUniqueLicense());
+
+    await fillAddressInfo(page, address, 'address-information-header-id');
+
+    await openAccordionByText(page, 'ข้อมูลรถ');
+    await humanFillText(page.locator('#license-plate-id'), await generatePlateAdvanced());
+    await page.waitForTimeout(500);
+    await humanFillText(page.locator('#chassis-number-id'), generateChassisNumber());
+    await page.waitForTimeout(500);
+    // ไม่มีฟิลด์สีรถ/จังหวัด เมื่อไม่ซื้อ พ.ร.บ. — ข้าม randomSelectColor
+    await page.waitForTimeout(2000);
+
+    await page.locator('#next-button-id').click();
+
+    const otpDialog = page.locator('[role="dialog"]');
+    await expect(otpDialog).toBeVisible();
+
+    await bypassOTP(page);
+    const { orderNo } = await acceptConsentAndPay(page);
+    await selectPaymentMethodAndConfirm(page);
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
+});
+
 test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await goToQuoteWithRetry(page, baseURL);
     await page.waitForTimeout(1000);
 
@@ -206,13 +293,7 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     await humanFillText(lastNameInput, randomLastname);
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(
         page.locator('#insured-email-input-id'),
@@ -258,7 +339,17 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 
 
 });
@@ -314,12 +405,7 @@ test('heygoody longterm e2e non-ev add 5 drivers flow', async ({ page }) => {
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -381,7 +467,17 @@ test('heygoody longterm e2e non-ev add 5 drivers flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 test('heygoody longterm e2e non-ev add 5 foreign drivers flow', async ({ page }) => {
@@ -435,12 +531,7 @@ test('heygoody longterm e2e non-ev add 5 foreign drivers flow', async ({ page })
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -510,13 +601,23 @@ test('heygoody longterm e2e non-ev add 5 foreign drivers flow', async ({ page })
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 
 
 test('heygoody longterm e2e non-ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await goToQuoteWithRetry(page, baseURL);
     await page.waitForTimeout(1000);
@@ -562,12 +663,7 @@ test('heygoody longterm e2e non-ev bymyself add Thai+foreign drivers flow', asyn
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
     await page.waitForTimeout(500);
 
-    const dobInput = page.locator('#dateOfBirth-input');
-    await dobInput.click();
-    await page.locator('[data-day*="/28/"]').click();
-    await page.waitForTimeout(1000);
-    await page.getByRole('button', { name: 'ยืนยัน' }).click();
-    await page.waitForTimeout(1000);
+    await pickDateOfBirth(page);
 
     await humanFillText(page.locator('#insured-email-input-id'), insured.email);
     await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
@@ -630,5 +726,15 @@ test('heygoody longterm e2e non-ev bymyself add Thai+foreign drivers flow', asyn
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });

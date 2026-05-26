@@ -2,6 +2,7 @@ const { test, expect, request } = require('@playwright/test');
 
 const { selectRandomBrand, selectRandomModel, selectRandomYear, selectRandomSubmodel, selectRandomProvince, selectRandomInsurer, selectRandomBirthYear } = require('../../../helpers/quote-helper-random');
 const { insured, driver } = require('../../../helpers/test-data');
+const { bypassOTP, acceptConsentAndPay, selectPaymentMethodAndConfirm, triggerPaymentWebhook } = require('../../../helpers/api-helpers');
 import {
     selectBuyForMyself,
     selectBuyForOthers,
@@ -21,7 +22,9 @@ import {
     openAccordionByText,
     selectAddressOption,
     randomSelectColor,
-    randomSelectTitleNameDriver1
+    randomSelectTitleNameDriver1,
+    closeLoginPopup,
+    closeEmailPopup,
 } from '../../../helpers/orferinfo-form-helpers';
 
 const validIDcard = [
@@ -70,7 +73,7 @@ async function submitQuote(page) {
 
 
 test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
 
@@ -95,11 +98,7 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     await submitQuote(page);
     await page.waitForTimeout(1000);
 
-    // ปิด popup login
-    const closeBtn = page.locator('button[data-slot="dialog-close"]');
-    await expect(closeBtn).toBeVisible();
-    await closeBtn.click();
-    await page.waitForTimeout(1000);
+    await closeLoginPopup(page);
 
     const recommendedCard = page
         .locator('#insurance-coverage-head-component-id')
@@ -118,11 +117,7 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
     await page.waitForTimeout(1000);
 
-    // close popup email
-    const closeIcon = page.locator('#close-auth-section-dialog-icon-id');
-    await expect(closeIcon).toBeVisible();
-    await closeIcon.click();
-    await page.waitForTimeout(1000);
+    await closeEmailPopup(page);
 
     await selectBuyForMyself(page);
 
@@ -261,13 +256,134 @@ test('heygoody longterm e2e non-ev bymyself flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 
 
 });
 
+test('heygoody longterm e2e non-ev bymyself flow without CMI (no พ.ร.บ.)', async ({ page }) => {
+    test.setTimeout(180_000);
+    await page.goto(baseURL);
+    await page.waitForLoadState('networkidle');
+
+    await expect(page.getByRole('heading', { name: 'เช็คเบี้ยประกันรถยนต์ รถเก๋ง และรถกระบะ 4 ประตู' })).toBeVisible();
+    await selectSedanCarType(page);
+
+    await selectRandomBrand(page);
+    await selectRandomModel(page);
+    await selectRandomYear(page);
+    await selectRandomSubmodel(page);
+    await selectRandomProvince(page);
+    await selectRandomInsurer(page);
+    await selectRandomBirthYear(page);
+    await selectStartDate(page);
+
+    // default หน้า quote = พ.ร.บ. ถูกเลือกอยู่ → คลิกเพื่อ untoggle
+    const prbCard = page.locator('#quote-car-cmi-card-id');
+    await expect(prbCard).toBeVisible();
+    await prbCard.click();
+
+    await submitQuote(page);
+    await page.waitForTimeout(1000);
+
+    await closeLoginPopup(page);
+
+    const recommendedCard = page
+        .locator('#insurance-coverage-head-component-id')
+        .filter({ hasText: 'แผนแนะนำ' })
+        .locator('..');
+
+    await recommendedCard.locator('#choose-plan-button-id').click();
+    await expect(recommendedCard.locator('text=แผนแนะนำ')).toBeVisible();
+    await page.waitForTimeout(1000);
+
+    await page.locator('#checkout-button-id').click();
+    await page.waitForTimeout(1000);
+
+    await closeEmailPopup(page);
+
+    await selectBuyForMyself(page);
+
+    const idCardInput = page.locator('#insured-id-card-input-id');
+    await expect(idCardInput).toBeVisible();
+    await testValidValues(page, idCardInput, validIDcard);
+    await page.waitForTimeout(500);
+
+    await selectRandomTitleName(page);
+    await page.waitForTimeout(500);
+
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await page.waitForTimeout(500);
+
+    await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
+    await page.waitForTimeout(500);
+
+    const dobInput = page.locator('#dateOfBirth-input');
+    await dobInput.click();
+    await page.locator('[data-day*="/28/"]').click();
+    await page.waitForTimeout(1000);
+    await page.getByRole('button', { name: 'ยืนยัน' }).click();
+    await page.waitForTimeout(1000);
+
+    await humanFillText(page.locator('#insured-email-input-id'), insured.email);
+    await humanFillText(page.locator('#insured-confirm-email-input-id'), insured.email);
+    await page.waitForTimeout(500);
+
+    const phoneInput = page.locator('#insured-phone-number-input-id');
+    await phoneInput.pressSequentially(insured.phone, { delay: 40 });
+    await phoneInput.blur();
+    await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
+
+    await openAccordion(page, 'driver-info-accordion-trigger-id');
+    await selectRadioByLabel(page, 'driver1-insured-radio-id');
+    await humanFillText(page.locator('#driver1-license-input-id'), '123456789012345678');
+
+    await openAccordionByText(page, 'ที่อยู่ตามบัตรประชาชน');
+    await page.locator('#add-address-info-button-id').click();
+    await humanFillText(page.locator('#house-no-input-id'), '123/4');
+    await humanFillText(page.locator('#village-building-input-id'), 'เดอะวิลล์ / Building 3');
+    await humanFillText(page.locator('#moo-input-id'), '8');
+    await humanFillText(page.locator('#alley-input-id'), 'สุขุมวิท 22');
+    await humanFillText(page.locator('#street-input-id'), 'พระราม 4');
+    await humanFillText(page.locator('#zipcode-input-id'), '10400');
+    await selectAddressOption(page, 'district-select-id');
+    await page.waitForTimeout(500);
+    await selectAddressOption(page, 'sub-district-select-id');
+    await page.waitForTimeout(500);
+    await page.locator('#delivery-address-dialog-save-button-id').click();
+    await page.waitForTimeout(500);
+
+    await openAccordionByText(page, 'ข้อมูลรถ');
+    await humanFillText(page.locator('#license-plate-id'), '2เฮ้2010');
+    await page.waitForTimeout(500);
+    await humanFillText(page.locator('#chassis-number-id'), 'AFFILIATESTEST001');
+    await page.waitForTimeout(500);
+    // ไม่มีฟิลด์สีรถเมื่อไม่ซื้อ พ.ร.บ. — ข้าม randomSelectColor
+    await page.waitForTimeout(2000);
+
+    await page.locator('#next-button-id').click();
+
+    const otpDialog = page.locator('[role="dialog"]');
+    await expect(otpDialog).toBeVisible();
+
+    await bypassOTP(page);
+    const { orderNo } = await acceptConsentAndPay(page);
+    await selectPaymentMethodAndConfirm(page);
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
+});
+
 test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     await page.goto(baseURL);
     await page.waitForLoadState('networkidle');
 
@@ -292,11 +408,7 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     await submitQuote(page);
     await page.waitForTimeout(1000);
 
-    // ปิด popup login
-    const closeBtn = page.locator('button[data-slot="dialog-close"]');
-    await expect(closeBtn).toBeVisible();
-    await closeBtn.click();
-    await page.waitForTimeout(1000);
+    await closeLoginPopup(page);
 
     const recommendedCard = page
         .locator('#insurance-coverage-head-component-id')
@@ -315,11 +427,7 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     await page.locator('#checkout-button-id').click(); //ปุ่มทำรายการต่อ
     await page.waitForTimeout(1000);
 
-    // close popup email
-    const closeIcon = page.locator('#close-auth-section-dialog-icon-id');
-    await expect(closeIcon).toBeVisible();
-    await closeIcon.click();
-    await page.waitForTimeout(1000);
+    await closeEmailPopup(page);
 
     await selectBuyForOthers(page);
 
@@ -518,7 +626,17 @@ test('heygoody longterm e2e non-ev by for others flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 
     // จบเทสตรงนี้
 

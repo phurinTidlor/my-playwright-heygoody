@@ -7,7 +7,7 @@
  *   TEST_ENV=pre npx playwright test
  */
 
-const ENV = process.env.TEST_ENV || 'dev';
+const ENV = process.env.TEST_ENV || 'uat';
 
 const HOSTS = {
     dev: 'https://dev-heygoody.areetech.io',

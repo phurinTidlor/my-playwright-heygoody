@@ -6,6 +6,7 @@ const {
 } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address } = require('../../../helpers/test-data');
 const { urls } = require('../../../helpers/config');
+const { bypassOTP, acceptConsentAndPay, selectPaymentMethodAndConfirm, triggerPaymentWebhook } = require('../../../helpers/api-helpers');
 
 import {
     selectBuyForMyself,
@@ -42,7 +43,7 @@ const ST_QUOTE_OPTIONS = {
 };
 
 test('heygoody shortterm e2e non-ev bymyself flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
@@ -74,7 +75,7 @@ test('heygoody shortterm e2e non-ev bymyself flow', async ({ page }) => {
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName('ระยะสั้น'));
     await page.waitForTimeout(500);
 
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
@@ -124,11 +125,21 @@ test('heygoody shortterm e2e non-ev bymyself flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 test('heygoody shortterm e2e non-ev by for others flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
@@ -160,7 +171,7 @@ test('heygoody shortterm e2e non-ev by for others flow', async ({ page }) => {
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName('ระยะสั้น'));
     await page.waitForTimeout(500);
 
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
@@ -203,7 +214,17 @@ test('heygoody shortterm e2e non-ev by for others flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 test('heygoody shortterm e2e non-ev add 5 drivers flow', async ({ page }) => {
@@ -239,7 +260,7 @@ test('heygoody shortterm e2e non-ev add 5 drivers flow', async ({ page }) => {
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName('ระยะสั้น'));
     await page.waitForTimeout(500);
 
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
@@ -304,7 +325,17 @@ test('heygoody shortterm e2e non-ev add 5 drivers flow', async ({ page }) => {
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 test('heygoody shortterm e2e non-ev add 5 foreign drivers flow', async ({ page }) => {
@@ -340,7 +371,7 @@ test('heygoody shortterm e2e non-ev add 5 foreign drivers flow', async ({ page }
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName('ระยะสั้น'));
     await page.waitForTimeout(500);
 
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
@@ -413,11 +444,21 @@ test('heygoody shortterm e2e non-ev add 5 foreign drivers flow', async ({ page }
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });
 
 test('heygoody shortterm e2e non-ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await goToQuoteWithRetry(page, baseURL, ST_QUOTE_OPTIONS);
     await page.waitForTimeout(1000);
@@ -449,7 +490,7 @@ test('heygoody shortterm e2e non-ev bymyself add Thai+foreign drivers flow', asy
     await selectRandomTitleName(page);
     await page.waitForTimeout(500);
 
-    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName());
+    await humanFillText(page.locator('#insured-name-input-id'), generateRandomThaiName('ระยะสั้น'));
     await page.waitForTimeout(500);
 
     await humanFillText(page.locator('#insured-last-name-input-id'), generateRandomThaiLastName('เฮกู้ดดี้'));
@@ -519,5 +560,15 @@ test('heygoody shortterm e2e non-ev bymyself add Thai+foreign drivers flow', asy
     const otpDialog = page.locator('[role="dialog"]');
     await expect(otpDialog).toBeVisible();
 
-    await page.pause();
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 });

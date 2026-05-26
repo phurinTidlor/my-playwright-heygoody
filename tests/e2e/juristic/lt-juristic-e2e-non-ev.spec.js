@@ -7,6 +7,7 @@ const {
 } = require('../../../helpers/quote-helper-random');
 const { insured, driver, foreignDriver, address, juristic } = require('../../../helpers/test-data');
 const { urls } = require('../../../helpers/config');
+const { bypassOTP, acceptConsentAndPay, selectPaymentMethodAndConfirm, triggerPaymentWebhook } = require('../../../helpers/api-helpers');
 
 import {
     closeLoginPopup,
@@ -37,9 +38,11 @@ const JURISTIC_QUOTE_OPTIONS = {
     welcomeText: 'เช็คเบี้ยประกันรถนิติบุคคล',
 };
 
-/** ขั้นตอนร่วมก่อนถึง driver section: quote → plan → checkout → company + signatory + email/phone */
-async function setupJuristicOrder(page) {
-    await goToQuoteWithRetry(page, baseURL, JURISTIC_QUOTE_OPTIONS);
+/** ขั้นตอนร่วมก่อนถึง driver section: quote → plan → checkout → company + signatory + email/phone
+ * @param {object} extraOptions - extra options ส่งต่อให้ goToQuoteWithRetry (เช่น beforeSubmit)
+ */
+async function setupJuristicOrder(page, extraOptions = {}) {
+    await goToQuoteWithRetry(page, baseURL, { ...JURISTIC_QUOTE_OPTIONS, ...extraOptions });
     await page.waitForTimeout(1000);
 
     await closeLoginPopup(page);
@@ -67,7 +70,7 @@ async function setupJuristicOrder(page) {
     });
     await fillJuristicSignatory(page, {
         idCard: generateUniqueThaiIDCard(),
-        firstName: generateRandomThaiName(),
+        firstName: generateRandomThaiName('จูริสติค'),
         lastName: generateRandomThaiLastName('เฮกู้ดดี้'),
     });
 
@@ -82,8 +85,10 @@ async function setupJuristicOrder(page) {
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');
 }
 
-/** ขั้นตอนร่วมหลัง driver: ที่อยู่ + ข้อมูลรถ + กดถัดไป + assert OTP */
-async function finalizeJuristicOrder(page) {
+/** ขั้นตอนร่วมหลัง driver: ที่อยู่ + ข้อมูลรถ + กดถัดไป + assert OTP
+ * @param {{ skipCarColor?: boolean }} options - skipCarColor=true เมื่อไม่ซื้อ พ.ร.บ. (ฟิลด์สีรถจะไม่มี)
+ */
+async function finalizeJuristicOrder(page, { skipCarColor = false } = {}) {
     await fillAddressInfo(page, address);
 
     await openAccordionByText(page, 'ข้อมูลรถ');
@@ -91,18 +96,31 @@ async function finalizeJuristicOrder(page) {
     await page.waitForTimeout(500);
     await humanFillText(page.locator('#chassis-number-id'), generateChassisNumber());
     await page.waitForTimeout(500);
-    await randomSelectColor(page, 'car-color-id');
+    if (!skipCarColor) {
+        await randomSelectColor(page, 'car-color-id');
+    }
     await page.waitForTimeout(3000);
 
     await page.locator('#next-button-id').click();
     await expect(page.locator('[role="dialog"]')).toBeVisible();
-    await page.pause();
+
+    // bypass OTP "123456" + กดยืนยัน
+    await bypassOTP(page);
+
+    // ยอมรับเงื่อนไข + กดชำระเลย + เก็บ order_no
+    const { orderNo } = await acceptConsentAndPay(page);
+
+    // เลือกวิธีชำระเงิน (QR Code) + หน่วง 5 วิ + กดชำระเงิน
+    await selectPaymentMethodAndConfirm(page);
+
+    // กรอก order_no ในเว็บ webhook payment + กดส่งข้อมูล
+    await triggerPaymentWebhook(page, orderNo, { pause: true });
 }
 
 // ─────────────────────────────────────────────────────────────────────
 
 test('heygoody longterm e2e juristic non-ev bymyself flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await setupJuristicOrder(page);
 
@@ -117,8 +135,30 @@ test('heygoody longterm e2e juristic non-ev bymyself flow', async ({ page }) => 
     await finalizeJuristicOrder(page);
 });
 
+test('heygoody longterm e2e juristic non-ev bymyself flow without CMI (no พ.ร.บ.)', async ({ page }) => {
+    test.setTimeout(180_000);
+
+    // default หน้า quote = พ.ร.บ. ถูกเลือกอยู่ → คลิก #quote-car-cmi-card-id เพื่อ untoggle
+    await setupJuristicOrder(page, {
+        beforeSubmit: async (p) => {
+            const prbCard = p.locator('#quote-car-cmi-card-id');
+            await expect(prbCard).toBeVisible();
+            await prbCard.click();
+        },
+    });
+
+    await expect(page.getByText('ข้อมูลผู้ขับขี่')).toBeVisible();
+    await selectRadioByLabel(page, 'driver1-insured-radio-id');
+    await humanFillText(
+        page.locator('#driver1-license-input-id'),
+        generateUniqueLicense()
+    );
+
+    await finalizeJuristicOrder(page, { skipCarColor: true });
+});
+
 test('heygoody longterm e2e juristic non-ev by for others flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await setupJuristicOrder(page);
 
@@ -205,7 +245,7 @@ test('heygoody longterm e2e juristic non-ev add 5 foreign drivers flow', async (
 });
 
 test('heygoody longterm e2e juristic non-ev bymyself add Thai+foreign drivers flow', async ({ page }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
 
     await setupJuristicOrder(page);
 
