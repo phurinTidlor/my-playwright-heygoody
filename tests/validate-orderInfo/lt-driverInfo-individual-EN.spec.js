@@ -771,7 +771,7 @@ test.describe('Validate form on Order Info page', () => {
         const phoneInput = page.locator('#driver-phone-number-input-id');
         await phoneInput.scrollIntoViewIfNeeded();
 
-        await phoneInput.pressSequentially('0891234567', { delay: 40 });
+        await phoneInput.pressSequentially('0812345678', { delay: 40 });
         await phoneInput.blur();
 
         await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');

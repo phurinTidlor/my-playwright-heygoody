@@ -56,7 +56,7 @@ const invalidEmails = [
 ];
 
 const memberEmails = [
-    "ptest.hg@gmail.com"
+    "qaheygoody@gmail.com"
 ];
 
 const baseURL = 'https://dev-heygoody.areetech.io/th/auto-insurance/st-individual/new/quote';

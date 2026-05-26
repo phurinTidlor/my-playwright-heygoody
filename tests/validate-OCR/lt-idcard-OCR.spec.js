@@ -170,16 +170,16 @@ test('Check Validate OCR fillinfo page : Upload Success', async ({ page }) => {
 
     await humanFillText(
         page.locator('#insured-email-input-id'),
-        'ptest.hg@gmail.com'
+        'qaheygoody@gmail.com'
     );
 
     await humanFillText(
-        page.locator('#insured-confirm-email-input-id'), 'ptest.hg@gmail.com'
+        page.locator('#insured-confirm-email-input-id'), 'qaheygoody@gmail.com'
     );
     await page.waitForTimeout(500);
 
     const phoneInput = page.locator('#insured-phone-number-input-id');
-    await phoneInput.pressSequentially('0980356820', { delay: 40 });
+    await phoneInput.pressSequentially('0812345678', { delay: 40 });
     await phoneInput.blur();
     await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true')
 

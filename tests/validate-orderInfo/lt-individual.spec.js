@@ -868,7 +868,7 @@ test.describe('Validate form on Order Info page', () => {
         await page.getByRole('radio', { name: 'ซื้อให้ตัวเอง' }).click();
         const phoneInput = page.locator('#insured-phone-number-input-id');
 
-        await phoneInput.pressSequentially('0891234567', { delay: 40 } );
+        await phoneInput.pressSequentially('0812345678', { delay: 40 } );
         await phoneInput.blur();
 
         await expect(phoneInput).not.toHaveAttribute('aria-invalid', 'true');

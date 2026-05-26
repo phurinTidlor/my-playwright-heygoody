@@ -6,13 +6,13 @@
  */
 
 const insured = {
-    email: 'ptest.hg@gmail.com',
-    phone: '0980356820',
+    email: 'qaheygoody@gmail.com',
+    phone: '0812345678',
 };
 
 const driver = {
-    email: 'heygoody.test@gmail.com',
-    phone: '0990000000',
+    email: 'qaheygoody@gmail.com',
+    phone: '0812345678',
     idCard: '3100900155331',
     license: '6000000001111',
     name: 'ระบุคนที่หนึ่ง',
@@ -20,8 +20,8 @@ const driver = {
 };
 
 const foreignDriver = {
-    email: 'foreign.driver@heygoody.com',
-    phone: '0980000001',
+    email: 'qaheygoody@gmail.com',
+    phone: '0812345678',
     passport: 'AB1234567',
     license: '6000000002222',
     name: 'John',
